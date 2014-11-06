@@ -12,7 +12,7 @@ install:
 
 script:
   - go test -v ./ss
-  - $HOME/gopath/bin/goveralls -repotoken InJhsyQaVPjyWrNPJqNL6GuXIb3KfnNlu
+  - $HOME/gopath/bin/goveralls ./ss -repotoken InJhsyQaVPjyWrNPJqNL6GuXIb3KfnNlu
 
 #branches:
 #  only:
