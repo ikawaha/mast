@@ -11,7 +11,7 @@ before_install:
 install:
 
 script:
-  - go test -v ./...
+  - go test -v ./ss
   - $HOME/gopath/bin/goveralls -repotoken InJhsyQaVPjyWrNPJqNL6GuXIb3KfnNlu
 
 #branches:
