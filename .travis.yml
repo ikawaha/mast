@@ -1,0 +1,20 @@
+language: go
+
+go:
+  - release
+
+before_install:
+  - go get github.com/axw/gocov/gocov
+  - go get github.com/mattn/goveralls
+  - go get code.google.com/p/go.tools/cmd/cover
+
+install:
+
+script:
+  - go test -v ./...
+  - $HOME/gopath/bin/goveralls -repotoken InJhsyQaVPjyWrNPJqNL6GuXIb3KfnNlu
+
+#branches:
+#  only:
+#    - master
+
