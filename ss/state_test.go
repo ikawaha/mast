@@ -91,5 +91,5 @@ func TestString01(t *testing.T) {
 		IsFinal: true,
 		Prev:    []*state{nil, r},
 	}
-	fmt.Println(s)
+	fmt.Println(s.String())
 }
