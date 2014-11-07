@@ -62,7 +62,7 @@ func (n *state) renew() {
 	n.Output = make(map[byte]string)
 	n.Tail = make(stringSet)
 	n.IsFinal = false
-	n.Prev = make([]*state, 0) //XXX これわざと付け替えてる
+	n.Prev = make([]*state, 0)
 }
 
 func (n *state) eq(dst *state) bool {
@@ -99,6 +99,9 @@ func (n *state) eq(dst *state) bool {
 // String returns a string representaion of a node for debug.
 func (n *state) String() string {
 	ret := ""
+	if n == nil {
+		return "<nil>"
+	}
 	ret += fmt.Sprintf("%d[%p]:", n.ID, n)
 	for ch := range n.Trans {
 		ret += fmt.Sprintf("%X/%s -->%p, ", ch, n.Output[ch], n.Trans[ch])
