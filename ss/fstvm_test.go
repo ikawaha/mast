@@ -2,7 +2,6 @@ package ss
 
 import (
 	"fmt"
-	"os"
 	"reflect"
 	"sort"
 	"testing"
@@ -13,8 +12,7 @@ func TestFstVMSearch01(t *testing.T) {
 		{"1a22xss", "world"},
 		{"1b22yss", "goodby"},
 	}
-	m := buildMast(inp)
-	vm, e := m.compile()
+	vm, e := Build(inp)
 	if e != nil {
 		t.Errorf("unexpected error: %v\n", e)
 	}
@@ -33,8 +31,7 @@ func TestFstVMSearch02(t *testing.T) {
 		{"1a22xss", "world"},
 		{"1a22yss", "goodby"},
 	}
-	m := buildMast(inp)
-	vm, e := m.compile()
+	vm, e := Build(inp)
 	if e != nil {
 		t.Errorf("unexpected error: %v\n", e)
 	}
@@ -53,8 +50,7 @@ func TestFstVMSearch03(t *testing.T) {
 		{"1a22xss", "world"},
 		{"1a22xss", "goodby"},
 	}
-	m := buildMast(inp)
-	vm, e := m.compile()
+	vm, e := Build(inp)
 	if e != nil {
 		t.Errorf("unexpected error: %v\n", e)
 	}
@@ -74,8 +70,7 @@ func TestFstVMSearch04(t *testing.T) {
 		{"1a22xss", "world"},
 		{"1a22xss", "goodby"},
 	}
-	m := buildMast(inp)
-	vm, e := m.compile()
+	vm, e := Build(inp)
 	if e != nil {
 		t.Errorf("unexpected error: %v\n", e)
 	}
@@ -96,9 +91,7 @@ func TestFstVMSearch05(t *testing.T) {
 		{"1a22xss", ""},
 		{"1a22xss", ""},
 	}
-	m := buildMast(inp)
-	m.dot(os.Stdout)
-	vm, e := m.compile()
+	vm, e := Build(inp)
 	if e != nil {
 		t.Errorf("unexpected error: %v\n", e)
 	}
@@ -120,9 +113,7 @@ func TestFstVMSearch06(t *testing.T) {
 		{"すもも", "pearch"},
 		{"すもも", "もも"},
 	}
-	m := buildMast(inp)
-	m.dot(os.Stdout)
-	vm, e := m.compile()
+	vm, e := Build(inp)
 	if e != nil {
 		t.Errorf("unexpected error: %v\n", e)
 	}

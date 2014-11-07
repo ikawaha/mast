@@ -15,14 +15,6 @@ type mast struct {
 	finalStates  []*state
 }
 
-func newMast() (m *mast) {
-	const initialMastSize = 1024
-	m = new(mast)
-	m.states = make([]*state, 0, initialMastSize)
-	m.finalStates = make([]*state, 0, initialMastSize)
-	return
-}
-
 func (m *mast) addState(n *state) {
 	n.ID = len(m.states)
 	m.states = append(m.states, n)
@@ -61,9 +53,14 @@ func commonPrefixLen(a, b string) int {
 	return i
 }
 
-func buildMast(input PairSlice) *mast {
+func buildMast(input PairSlice) (m *mast) {
 	sort.Sort(input)
-	mast := newMast()
+
+	const initialMastSize = 1024
+	m = new(mast)
+	m.states = make([]*state, 0, initialMastSize)
+	m.finalStates = make([]*state, 0, initialMastSize)
+
 	buf := make([]*state, input.maxInputWordLen()+1)
 	for i := range buf {
 		buf[i] = newState()
@@ -72,7 +69,7 @@ func buildMast(input PairSlice) *mast {
 	for _, pair := range input {
 		in, out := pair.In, pair.Out
 		prefixLen := commonPrefixLen(in, prev)
-		candidate := mast.finalStates
+		candidate := m.finalStates
 		for i := len(prev); i > prefixLen; i-- {
 			var s *state
 			detected := false
@@ -92,7 +89,7 @@ func buildMast(input PairSlice) *mast {
 				s = &state{}
 				*s = *buf[i]
 				buf[i].renew()
-				mast.addState(s)
+				m.addState(s)
 			}
 			buf[i-1].setTransition(prev[i-1], s)
 			s.setInvTransition()
@@ -132,7 +129,7 @@ func buildMast(input PairSlice) *mast {
 		prev = in
 	}
 	// flush the buf
-	candidate := mast.finalStates
+	candidate := m.finalStates
 	for i := len(prev); i > 0; i-- {
 		var s *state
 		detected := false
@@ -149,15 +146,15 @@ func buildMast(input PairSlice) *mast {
 		if !detected {
 			candidate = nil
 			s = buf[i]
-			mast.addState(s)
+			m.addState(s)
 		}
 		buf[i-1].setTransition(prev[i-1], s)
 		s.setInvTransition()
 	}
-	mast.initialState = buf[0]
-	mast.addState(buf[0])
+	m.initialState = buf[0]
+	m.addState(buf[0])
 
-	return mast
+	return
 }
 
 func (m *mast) run(input string) (out []string, ok bool) {
