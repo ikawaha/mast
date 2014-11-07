@@ -128,6 +128,8 @@ func TestFstVMSearch06(t *testing.T) {
 		{"こんにちは", []string{"hello"}},
 		{"世界", []string{"world"}},
 		{"すもももももも", []string{"pearch"}},
+		{"すも", nil},
+		{"すもう", nil},
 	}
 
 	for _, pair := range cr {
