@@ -12,7 +12,7 @@ install:
 
 script:
   - go test -v ./ss
-  - ./go-coverall.sh
+  - /bin/sh ./go-coverall.sh
 #  - $HOME/gopath/bin/goveralls -repotoken InJhsyQaVPjyWrNPJqNL6GuXIb3KfnNlu ./ss
 #  - $HOME/gopath/bin/goveralls -repotoken InJhsyQaVPjyWrNPJqNL6GuXIb3KfnNlu ./si
 
