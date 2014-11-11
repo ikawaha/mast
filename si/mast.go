@@ -27,18 +27,6 @@ func Build(input PairSlice) (vm FstVM, err error) {
 	return m.compile()
 }
 
-func commonPrefix(a, b string) string {
-	end := len(a)
-	if end > len(b) {
-		end = len(b)
-	}
-	var i int
-	for i < end && a[i] == b[i] {
-		i++
-	}
-	return a[0:i]
-}
-
 func commonPrefixLen(a, b string) int {
 	end := len(a)
 	if end > len(b) {
@@ -98,11 +86,6 @@ func buildMast(input PairSlice) (m *mast) {
 		if in != prev {
 			buf[len(in)].IsFinal = true
 		}
-		//for j := 1; j < prefixLen+1; j++ {
-		//	if buf[j].IsFinal {
-		//		buf[j].addTail(out)
-		//	}
-		//}
 		buf[len(in)].addTail(out)
 		prev = in
 	}
@@ -136,24 +119,12 @@ func buildMast(input PairSlice) (m *mast) {
 }
 
 func (m *mast) run(input string) (out []int, ok bool) {
-	//var buf bytes.Buffer
 	s := m.initialState
 	for i, size := 0, len(input); i < size; i++ {
-		//if o, ok := s.Output[input[i]]; ok {
-		//	buf.WriteString(o)
-		//}
 		if s, ok = s.Trans[input[i]]; !ok {
 			return
 		}
 	}
-	//o := buf.String()
-	//if !s.hasTail() {
-	//	out = append(out, o)
-	//	return
-	//}
-	//for _, t := range s.tails() {
-	//	out = append(out, o+t)
-	//}
 	return s.tails(), s.IsFinal
 }
 
@@ -221,20 +192,12 @@ func (m *mast) compile() (vm FstVM, err error) {
 		for i, size := 0, len(edges); i < size; i++ {
 			inp := edges[size-1-i]
 			next := s.Trans[inp]
-			//out := s.Output[inp]
 			addr, ok := addrMap[next.ID]
 			if !ok && !next.IsFinal {
 				err = fmt.Errorf("next addr is undefined: state(%v), input(%X)", s.ID, inp)
 				return
 			}
 			var op instOp
-			//if len(out) > 0 {
-			//	if i == 0 {
-			//		op = instOutputBreak
-			//	} else {
-			//		op = instOutput
-			//	}
-			//} else if i == 0 {
 			if i == 0 {
 				op = instBreak
 			} else {
@@ -242,16 +205,6 @@ func (m *mast) compile() (vm FstVM, err error) {
 			}
 			inst := byte(op)
 			jump := len(vm.prog) - addr
-			//if len(out) != 0 {
-			//	adr := tape.Len()
-			//	dst := toBytes(adr)
-			//	sz := byte(len(dst))
-			//	vm.prog = append(vm.prog, dst...)
-			//	vm.prog = append(vm.prog, sz)
-
-			//	tape.WriteString(out)
-			//	tape.WriteByte(byte(0x00))
-			//}
 			if jump > 1 {
 				dst := toBytes(jump)
 				inst |= byte(len(dst))

@@ -5,17 +5,15 @@ import "fmt"
 type instOp byte
 
 const (
-	valBits        = 5
+	valBits        = 6
 	instBits       = 8 - valBits
 	instShift      = valBits
 	valMask   byte = 0xFF >> instBits
 	instMask  byte = 0xFF - valMask
 
-	instAccept      instOp = 0x01 << instShift
-	instMatch              = 0x02 << instShift
-	instBreak              = 0x03 << instShift
-	instOutput             = 0x04 << instShift
-	instOutputBreak        = 0x05 << instShift
+	instAccept instOp = 0x01 << instShift
+	instMatch         = 0x02 << instShift
+	instBreak         = 0x03 << instShift
 )
 
 var instOpName = [2 << instBits]string{
@@ -23,10 +21,6 @@ var instOpName = [2 << instBits]string{
 	"ACC",
 	"MAT",
 	"BRK",
-	"OUT",
-	"OTB",
-	"OP6",
-	"OP7",
 }
 
 // String returns a operation name of a instruction.
@@ -66,14 +60,6 @@ func (vm FstVM) String() string {
 				sz = int(vm.prog[pc])
 				pc++
 				e := toInt(vm.prog[pc : pc+sz])
-				//var tails []string
-				//for i := s; i < e; i++ {
-				//	h := i
-				//	for vm.data[i] != 0 {
-				//		i++
-				//	}
-				//	tails = append(tails, vm.data[h:i])
-				//}
 				ret += fmt.Sprintf("%3d  %v %v\n", p, op, vm.data[s:e])
 				for j := p + 1; j <= pc; j++ {
 					ret += fmt.Sprintf("%3d [TIL addr=%d:%d]\n", j, s, e)
@@ -91,18 +77,6 @@ func (vm FstVM) String() string {
 			ret += fmt.Sprintf("%3d [%v %X %d]\n", j, op, inp, v)
 		}
 		pc += sz
-		if op == instOutput || op == instOutputBreak {
-			p := pc
-			sz := int(vm.prog[pc])
-			pc++
-			buf := vm.prog[pc : pc+sz]
-			v := toInt(buf)
-			pc += sz
-			for j := p; j < pc; j++ {
-				ret += fmt.Sprintf("%3d [OUT addr=%d]\n", j, v)
-			}
-
-		}
 	}
 	return ret
 }
@@ -125,7 +99,6 @@ func (vm *FstVM) Search(input string) []int {
 		ch byte   // char
 		hd int    // input head
 		va int    // value
-		//tape []byte // output tape
 	)
 	for pc < len(vm.prog) && hd < len(input) {
 		op = instOp(vm.prog[pc] & instMask)
@@ -155,46 +128,6 @@ func (vm *FstVM) Search(input string) []int {
 			}
 			hd++
 			continue
-			/*
-				case instOutput:
-					fallthrough
-				case instOutputBreak:
-					pc++
-					ch = vm.prog[pc]
-					pc++
-					//fmt.Println("ch:", ch, "input[hd]", input[hd]) //XXX
-					if ch != input[hd] {
-						if op == instOutputBreak {
-							return nil
-						}
-						if sz > 0 {
-							pc += sz
-						}
-						s := int(vm.prog[pc])
-						pc += s + 1
-						continue
-					}
-					if sz > 0 {
-						va = toInt(vm.prog[pc : pc+sz])
-						pc += sz
-					} else {
-						va = 0
-					}
-					hd++
-					s := int(vm.prog[pc])
-					v := toInt(vm.prog[pc+1 : pc+1+s])
-					//fmt.Println("pc:", pc, "s:", s, "v:", v) //XXX
-					//for p := v; ; {
-					//              if p >= len(vm.data) || vm.data[p] == 0 {
-					//		//fmt.Printf("out>>%s(%v, %v)\n", vm.data[v:p], v, p) //XXX
-					//		tape = append(tape, vm.data[v:p]...)
-					//		break
-					//	}
-					//	p++
-					//}
-					//fmt.Println("pc:", pc, "s:", s, "va:", va)
-					pc += s + va + 1
-			*/
 		case instAccept:
 			pc++
 			if sz > 0 {
@@ -219,23 +152,11 @@ func (vm *FstVM) Search(input string) []int {
 	}
 	sz = int(vm.prog[pc] & valMask)
 	pc++
-	if sz == 0 {
-		return []int{}
-	}
 	s := toInt(vm.prog[pc : pc+sz])
 	pc += sz
 	sz = int(vm.prog[pc])
 	pc++
 	e := toInt(vm.prog[pc : pc+sz])
-	//var outs []string
-	//for i := s; i < e; i++ {
-	//	h := i
-	//	for vm.data[i] != 0 {
-	//		i++
-	//	}
-	//	t := append(tape, vm.data[h:i]...)
-	//	outs = append(outs, string(t))
-	//}
 	pc += sz
 	return vm.data[s:e]
 }
