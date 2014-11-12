@@ -2,6 +2,17 @@
 
 [mast](http://github.com/ikawaha/mast) is a library for building of a finite state transducer called [minimal acyclic subsequential transducer](http://citeseerx.ist.psu.edu/viewdoc/download;jsessionid=CD58961193540FBC807D500663EFD451?doi=10.1.1.24.3698&rep=rep1&type=pdf).
 
+ex. 
+
+|input|output|
+|:---|:---|
+|apr|30|
+|aug|31|
+|dec|31|
+|feb|28, 29|
+
+![Finite State Transducer](https://github.com/ikawaha/mast/wiki/images/fst_sample_01.png)
+
 ## Installation
 
 ```
