@@ -34,6 +34,11 @@ type FstVM struct {
 	data []int
 }
 
+type configuration struct {
+	pc  int
+	inp int
+}
+
 func toInt(b []byte) int {
 	var x int
 	for i, size := 0, len(b); i < size; i++ {
@@ -90,8 +95,7 @@ func invert(b []byte) (inv []byte) {
 	return
 }
 
-// Search runs a finite state transducer for a given input and returns outputs if accepted otherwise nil.
-func (vm *FstVM) Search(input string) []int {
+func (vm *FstVM) run(input string) (snap []configuration, accept bool) {
 	var (
 		pc int    // program counter
 		op instOp // operation
@@ -113,7 +117,7 @@ func (vm *FstVM) Search(input string) []int {
 			pc++
 			if ch != input[hd] {
 				if op == instBreak {
-					return nil
+					return
 				}
 				if sz > 0 {
 					pc += sz
@@ -129,6 +133,7 @@ func (vm *FstVM) Search(input string) []int {
 			hd++
 			continue
 		case instAccept:
+			snap = append(snap, configuration{pc, hd})
 			pc++
 			if sz > 0 {
 				pc += sz
@@ -138,19 +143,32 @@ func (vm *FstVM) Search(input string) []int {
 			continue
 		default:
 			//fmt.Printf("unknown op:%v\n", op)
-			return nil
+			return
 		}
 	}
 
 	if pc >= len(vm.prog) || hd != len(input) {
-		return nil
+		return
 	}
 	if op = instOp(vm.prog[pc] & instMask); op != instAccept {
 		//fmt.Printf("[[FINAL]]pc:%d, op:%s, ch:[%X], sz:%d, v:%d\n", pc, op, ch, sz, va) //XXX
-		return nil
+		return
 
 	}
-	sz = int(vm.prog[pc] & valMask)
+	accept = true
+	snap = append(snap, configuration{pc, hd})
+	return
+}
+
+// Search runs a finite state transducer for a given input and returns outputs if accepted otherwise nil.
+func (vm *FstVM) Search(input string) []int {
+	snap, acc := vm.run(input)
+	if !acc || len(snap) == 0 {
+		return nil
+	}
+	c := snap[len(snap)-1]
+	pc := c.pc
+	sz := int(vm.prog[pc] & valMask)
 	pc++
 	s := toInt(vm.prog[pc : pc+sz])
 	pc += sz
@@ -159,4 +177,48 @@ func (vm *FstVM) Search(input string) []int {
 	e := toInt(vm.prog[pc : pc+sz])
 	pc += sz
 	return vm.data[s:e]
+}
+
+// PrefixSearch returns the longest commom prefix keyword and it's length in given input if detected otherwise -1, nil.
+func (vm *FstVM) PrefixSearch(input string) (int, []int) {
+	snap, _ := vm.run(input)
+	if len(snap) == 0 {
+		return -1, nil
+	}
+	c := snap[len(snap)-1]
+	pc := c.pc
+	sz := int(vm.prog[pc] & valMask)
+	pc++
+	s := toInt(vm.prog[pc : pc+sz])
+	pc += sz
+	sz = int(vm.prog[pc])
+	pc++
+	e := toInt(vm.prog[pc : pc+sz])
+	pc += sz
+	return c.inp, vm.data[s:e]
+
+}
+
+// CommonPrefixSearch finds keywords sharing common prefix in given input
+// and returns it's lengths and outputs. Returns nil, nil if there does not common prefix keywords.
+func (vm *FstVM) CommonPrefixSearch(input string) (lens []int, outputs [][]int) {
+	snap, _ := vm.run(input)
+	if len(snap) == 0 {
+		return
+	}
+	for _, c := range snap {
+		pc := c.pc
+		sz := int(vm.prog[pc] & valMask)
+		pc++
+		s := toInt(vm.prog[pc : pc+sz])
+		pc += sz
+		sz = int(vm.prog[pc])
+		pc++
+		e := toInt(vm.prog[pc : pc+sz])
+		pc += sz
+		lens = append(lens, c.inp)
+		outputs = append(outputs, vm.data[s:e])
+	}
+	return
+
 }

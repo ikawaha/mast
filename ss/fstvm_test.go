@@ -109,8 +109,8 @@ func TestFstVMSearch06(t *testing.T) {
 	inp := PairSlice{
 		{"こんにちは", "hello"},
 		{"世界", "world"},
-		{"すもももももも", "pearch"},
-		{"すもも", "pearch"},
+		{"すもももももも", "peach"},
+		{"すもも", "peach"},
 		{"すもも", "もも"},
 	}
 	vm, e := Build(inp)
@@ -123,11 +123,11 @@ func TestFstVMSearch06(t *testing.T) {
 		in  string
 		out []string
 	}{
-		{"すもも", []string{"pearch", "もも"}},
+		{"すもも", []string{"peach", "もも"}},
 		{"こんにちわ", nil},
 		{"こんにちは", []string{"hello"}},
 		{"世界", []string{"world"}},
-		{"すもももももも", []string{"pearch"}},
+		{"すもももももも", []string{"peach"}},
 		{"すも", nil},
 		{"すもう", nil},
 	}
@@ -138,6 +138,94 @@ func TestFstVMSearch06(t *testing.T) {
 		sort.Strings(pair.out)
 		if !reflect.DeepEqual(outs, pair.out) {
 			t.Errorf("input:%v, got %v, expected %v\n", pair.in, outs, pair.out)
+		}
+	}
+}
+
+func TestFstVMPrefixSearch01(t *testing.T) {
+	inp := PairSlice{
+		{"こんにちは", "hello"},
+		{"世界", "world"},
+		{"すもももももも", "peach"},
+		{"すもも", "peach"},
+		{"すもも", "もも"},
+	}
+	vm, e := Build(inp)
+	if e != nil {
+		t.Errorf("unexpected error: %v\n", e)
+	}
+	fmt.Println(vm)
+
+	crs := []struct {
+		in  string
+		pos int
+		out []string
+	}{
+		{"すもも", 9, []string{"peach", "もも"}},
+		{"こんにちわ", -1, nil},
+		{"こんにちは", 15, []string{"hello"}},
+		{"世界", 6, []string{"world"}},
+		{"すもももももも", 21, []string{"peach"}},
+		{"すも", -1, nil},
+		{"すもう", -1, nil},
+		{"すもももももももものうち", 21, []string{"peach"}},
+	}
+
+	for _, cr := range crs {
+		pos, outs := vm.PrefixSearch(cr.in)
+		sort.Strings(outs)
+		sort.Strings(cr.out)
+		if pos != cr.pos || !reflect.DeepEqual(outs, cr.out) {
+			t.Errorf("input:%v, got %v %v, expected %v %v\n", cr.in, pos, outs, cr.pos, cr.out)
+		}
+	}
+}
+
+func TestFstVMCommonPrefixSearch01(t *testing.T) {
+	inp := PairSlice{
+		{"こんにちは", "hello"},
+		{"世界", "world"},
+		{"すもももももも", "peach"},
+		{"すもも", "peach"},
+		{"すもも", "もも"},
+	}
+	vm, e := Build(inp)
+	if e != nil {
+		t.Errorf("unexpected error: %v\n", e)
+	}
+	fmt.Println(vm)
+
+	crs := []struct {
+		in   string
+		lens []int
+		outs [][]string
+	}{
+		{"すもも", []int{9}, [][]string{{"peach", "もも"}}},
+		{"こんにちわ", nil, nil},
+		{"こんにちは", []int{15}, [][]string{{"hello"}}},
+		{"世界", []int{6}, [][]string{{"world"}}},
+		{"すもももももも", []int{9, 21}, [][]string{{"peach", "もも"}, {"peach"}}},
+		{"すも", nil, nil},
+		{"すもう", nil, nil},
+		{"すもももももももものうち", []int{9, 21}, [][]string{{"peach", "もも"}, {"peach"}}},
+	}
+
+	for _, cr := range crs {
+		lens, outs := vm.CommonPrefixSearch(cr.in)
+		if !reflect.DeepEqual(lens, cr.lens) || len(outs) != len(cr.outs) {
+			t.Errorf("input:%v, got lens:%v outs:%v, expected lens:%v outs:%v",
+				cr.in, lens, outs, cr.lens, cr.outs)
+			continue
+		}
+		for i := range outs {
+			o := outs[i]
+			e := cr.outs[i]
+			sort.Strings(o)
+			sort.Strings(e)
+			if !reflect.DeepEqual(o, e) {
+				t.Errorf("input:%v, got lens:%v outs:%v, expected lens:%v outs:%v",
+					cr.in, lens, outs, cr.lens, cr.outs)
+			}
 		}
 	}
 }

@@ -40,6 +40,12 @@ type FstVM struct {
 	data string
 }
 
+type configuration struct {
+	pc   int
+	inp  int
+	tape int
+}
+
 func toInt(b []byte) int {
 	var x int
 	for i, size := 0, len(b); i < size; i++ {
@@ -118,14 +124,111 @@ func invert(b []byte) (inv []byte) {
 
 // Search runs a finite state transducer for a given input and returns outputs if accepted otherwise nil.
 func (vm *FstVM) Search(input string) []string {
+	tape, snap, acc := vm.run(input)
+	if !acc || len(snap) == 0 {
+		return nil
+	}
+	c := snap[len(snap)-1]
+	pc := c.pc
+	sz := int(vm.prog[pc] & valMask)
+	pc++
+	if sz == 0 {
+		return []string{string(tape[0:c.tape])}
+	}
+	s := toInt(vm.prog[pc : pc+sz])
+	pc += sz
+	sz = int(vm.prog[pc])
+	pc++
+	e := toInt(vm.prog[pc : pc+sz])
+	var outs []string
+	for i := s; i < e; i++ {
+		h := i
+		for vm.data[i] != 0 {
+			i++
+		}
+		t := append(tape[0:c.tape], vm.data[h:i]...)
+		outs = append(outs, string(t))
+	}
+	pc += sz
+	return outs
+}
+
+// PrefixSearch returns the longest commom prefix keyword and it's length in given input if detected otherwise -1, nil.
+func (vm *FstVM) PrefixSearch(input string) (int, []string) {
+	tape, snap, _ := vm.run(input)
+	if len(snap) == 0 {
+		return -1, nil
+	}
+	c := snap[len(snap)-1]
+	pc := c.pc
+	sz := int(vm.prog[pc] & valMask)
+	pc++
+	if sz == 0 {
+		return c.inp, []string{string(tape[0:c.tape])}
+	}
+	s := toInt(vm.prog[pc : pc+sz])
+	pc += sz
+	sz = int(vm.prog[pc])
+	pc++
+	e := toInt(vm.prog[pc : pc+sz])
+	var outs []string
+	for i := s; i < e; i++ {
+		h := i
+		for vm.data[i] != 0 {
+			i++
+		}
+		t := append(tape[0:c.tape], vm.data[h:i]...)
+		outs = append(outs, string(t))
+	}
+	pc += sz
+	return c.inp, outs
+}
+
+// CommonPrefixSearch finds keywords sharing common prefix in given input
+// and returns it's lengths and outputs. Returns nil, nil if there does not common prefix keywords.
+func (vm *FstVM) CommonPrefixSearch(input string) (lens []int, outputs [][]string) {
+	tape, snap, _ := vm.run(input)
+	if len(snap) == 0 {
+		return
+	}
+	for _, c := range snap {
+		lens = append(lens, c.inp)
+		pc := c.pc
+		sz := int(vm.prog[pc] & valMask)
+		pc++
+		if sz == 0 {
+			outputs = append(outputs, []string{string(tape[0:c.tape])})
+			continue
+		}
+		s := toInt(vm.prog[pc : pc+sz])
+		pc += sz
+		sz = int(vm.prog[pc])
+		pc++
+		e := toInt(vm.prog[pc : pc+sz])
+		var outs []string
+		for i := s; i < e; i++ {
+			h := i
+			for vm.data[i] != 0 {
+				i++
+			}
+			t := make([]byte, 0, c.tape+(i-h))
+			t = append(t, tape[0:c.tape]...)
+			t = append(t, vm.data[h:i]...)
+			outs = append(outs, string(t))
+		}
+		outputs = append(outputs, outs)
+	}
+	return
+}
+
+func (vm *FstVM) run(input string) (tape []byte, snap []configuration, accept bool) {
 	var (
-		pc   int    // program counter
-		op   instOp // operation
-		sz   int    // size
-		ch   byte   // char
-		hd   int    // input head
-		va   int    // value
-		tape []byte // output tape
+		pc int    // program counter
+		op instOp // operation
+		sz int    // size
+		ch byte   // char
+		hd int    // input head
+		va int    // value
 	)
 	for pc < len(vm.prog) && hd < len(input) {
 		op = instOp(vm.prog[pc] & instMask)
@@ -140,7 +243,7 @@ func (vm *FstVM) Search(input string) []string {
 			pc++
 			if ch != input[hd] {
 				if op == instBreak {
-					return nil
+					return
 				}
 				if sz > 0 {
 					pc += sz
@@ -164,7 +267,7 @@ func (vm *FstVM) Search(input string) []string {
 			//fmt.Println("ch:", ch, "input[hd]", input[hd]) //XXX
 			if ch != input[hd] {
 				if op == instOutputBreak {
-					return nil
+					return
 				}
 				if sz > 0 {
 					pc += sz
@@ -194,6 +297,7 @@ func (vm *FstVM) Search(input string) []string {
 			//fmt.Println("pc:", pc, "s:", s, "va:", va)
 			pc += s + va + 1
 		case instAccept:
+			snap = append(snap, configuration{pc, hd, len(tape)})
 			pc++
 			if sz > 0 {
 				pc += sz
@@ -203,37 +307,19 @@ func (vm *FstVM) Search(input string) []string {
 			continue
 		default:
 			//fmt.Printf("unknown op:%v\n", op)
-			return nil
+			return
 		}
 	}
 
 	if pc >= len(vm.prog) || hd != len(input) {
-		return nil
+		return
 	}
 	if op = instOp(vm.prog[pc] & instMask); op != instAccept {
 		//fmt.Printf("[[FINAL]]pc:%d, op:%s, ch:[%X], sz:%d, v:%d\n", pc, op, ch, sz, va) //XXX
-		return nil
+		return
 
 	}
-	sz = int(vm.prog[pc] & valMask)
-	pc++
-	if sz == 0 {
-		return []string{string(tape)}
-	}
-	s := toInt(vm.prog[pc : pc+sz])
-	pc += sz
-	sz = int(vm.prog[pc])
-	pc++
-	e := toInt(vm.prog[pc : pc+sz])
-	var outs []string
-	for i := s; i < e; i++ {
-		h := i
-		for vm.data[i] != 0 {
-			i++
-		}
-		t := append(tape, vm.data[h:i]...)
-		outs = append(outs, string(t))
-	}
-	pc += sz
-	return outs
+	accept = true
+	snap = append(snap, configuration{pc, hd, len(tape)})
+	return
 }
