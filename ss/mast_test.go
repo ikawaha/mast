@@ -96,8 +96,11 @@ func TestMastRun02(t *testing.T) {
 
 func TestMastDot01(t *testing.T) {
 	inp := PairSlice{
-		{"1a111a", "world"},
-		{"1b111b", "goodby"},
+		{"apr", "30"},
+		{"aug", "31"},
+		{"dec", "31"},
+		{"feb", "28"},
+		{"feb", "29"},
 	}
 	m := buildMast(inp)
 	m.dot(os.Stdout)
