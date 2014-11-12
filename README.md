@@ -16,28 +16,39 @@ go get github.com/ikawaha/mast/...
 package main
 
 import (
-        "fmt"
-        "github.com/ikawaha/mast/ss"
+    "fmt"
+    "github.com/ikawaha/mast/ss"
 )
 
 func main() {
-        pairs := ss.PairSlice{
-                {"こんにちは", "hello"},
-                {"こんにちは", "Здравствуйте"},
-                {"こんばんは", "good evening"},
-        }
+    pairs := ss.PairSlice{
+        {"こんにちは", "hello"},
+        {"こんにちは", "Здравствуйте"},
+        {"こんばんは", "good evening"},
+        {"東京", "Tokyo"},
+        {"東京チョコレート", "Capsule"},
+        {"東京チョコレート", "Eel"},
+    }
 
-        t, _ := ss.Build(pairs)
-        gs := t.Search("こんにちは")
-        for _, g := range gs {
-                fmt.Println(g)
-        }
+    fst, _ := ss.Build(pairs)
+    if o := fst.Search("こんにちは"); o != nil {
+        fmt.Println(o)
+    }
+
+    inp := "東京チョコレートMIX"
+    lens, outs := fst.CommonPrefixSearch(inp)
+    for i := range outs {
+        fmt.Println(inp[0:lens[i]], outs[i])
+    }
 }
 ```
+
 outputs
+
 ```
-hello
-Здравствуйте
+[hello Здравствуйте]
+東京 [Tokyo]
+東京チョコレート [Capsule Eel]
 ```
 
 ### String to Integer Transducers
@@ -46,26 +57,39 @@ hello
 package main
 
 import (
-	"fmt"
-	"github.com/ikawaha/mast/si"
+    "fmt"
+    "github.com/ikawaha/mast/si"
 )
 
 func main() {
-	pairs := si.PairSlice{
-		{"こんにちは", 111},
-		{"こんにちは", 222},
-		{"こんばんは", 333},
-	}
+    pairs := si.PairSlice{
+        {"こんにちは", 111},
+        {"こんにちは", 222},
+        {"こんばんは", 333},
+        {"東京", 444},
+        {"東京チョコレート", 555},
+        {"東京チョコレート", 666},
+    }
 
-	t, _ := si.Build(pairs)
-	vs := t.Search("こんにちは")
-	fmt.Println(vs)
+    fst, _ := si.Build(pairs)
+    if o := fst.Search("こんにちは"); o != nil {
+        fmt.Println(o)
+    }
+    inp := "東京チョコレートMIX"
+    lens, outs := fst.CommonPrefixSearch(inp)
+    for i := range outs {
+        fmt.Println(inp[0:lens[i]], outs[i])
+    }
+
 }
 ```
 
 outputs
+
 ```
-[111 222]
+[222 111]
+東京 [444]
+東京チョコレート [555 666]
 ```
 
 ## References
