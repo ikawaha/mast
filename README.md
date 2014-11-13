@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/ikawaha/mast.svg?branch=master)](https://travis-ci.org/ikawaha/mast) [![Coverage Status](https://coveralls.io/repos/ikawaha/mast/badge.png?branch=master)](https://coveralls.io/r/ikawaha/mast?branch=master)
+
 # Minimal Acyclic Subsequential Transducers
 
 [mast](http://github.com/ikawaha/mast) is a library for building of a finite state transducer called [minimal acyclic subsequential transducer](http://citeseerx.ist.psu.edu/viewdoc/download;jsessionid=CD58961193540FBC807D500663EFD451?doi=10.1.1.24.3698&rep=rep1&type=pdf).
