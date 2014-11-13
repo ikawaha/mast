@@ -1,6 +1,10 @@
 package si
 
-import "fmt"
+import (
+	"encoding/binary"
+	"fmt"
+	"io"
+)
 
 type instOp byte
 
@@ -221,4 +225,49 @@ func (vm *FstVM) CommonPrefixSearch(input string) (lens []int, outputs [][]int) 
 	}
 	return
 
+}
+
+// Save FstVM
+func (vm FstVM) Save(w io.Writer) (err error) {
+	if err = binary.Write(w, binary.LittleEndian, int64(len(vm.prog))); err != nil {
+		return
+	}
+	if _, err = w.Write(vm.prog); err != nil { //TODO compress
+		return
+	}
+	if err = binary.Write(w, binary.LittleEndian, int64(len(vm.data))); err != nil {
+		return
+	}
+	for i := 0; i < len(vm.data); i++ {
+		if err = binary.Write(w, binary.LittleEndian, int64(vm.data[i])); err != nil {
+			return
+		}
+	}
+	return
+}
+
+// Load FstVM
+func (vm *FstVM) Load(r io.Reader) (err error) {
+	var n int64
+	if err = binary.Read(r, binary.LittleEndian, &n); err != nil {
+		return
+	}
+	prog := make([]byte, n, n)
+	if _, err = r.Read(prog); err != nil {
+		return
+	}
+	if err = binary.Read(r, binary.LittleEndian, &n); err != nil {
+		return
+	}
+	data := make([]int, n, n)
+	for i := 0; i < int(n); i++ {
+		var v int64
+		if err = binary.Read(r, binary.LittleEndian, &v); err != nil {
+			return
+		}
+		data[i] = int(v)
+	}
+	vm.prog = prog
+	vm.data = data
+	return
 }

@@ -1,6 +1,10 @@
 package ss
 
-import "fmt"
+import (
+	"encoding/binary"
+	"fmt"
+	"io"
+)
 
 type instOp byte
 
@@ -321,5 +325,45 @@ func (vm *FstVM) run(input string) (tape []byte, snap []configuration, accept bo
 	}
 	accept = true
 	snap = append(snap, configuration{pc, hd, len(tape)})
+	return
+}
+
+// Save FstVM
+func (vm FstVM) Save(w io.Writer) (err error) {
+	if err = binary.Write(w, binary.LittleEndian, int64(len(vm.prog))); err != nil {
+		return
+	}
+	if _, err = w.Write(vm.prog); err != nil { //TODO compress
+		return
+	}
+	if err = binary.Write(w, binary.LittleEndian, int64(len(vm.data))); err != nil {
+		return
+	}
+	if _, err = w.Write([]byte(vm.data)); err != nil { //XXX
+		return
+	}
+	return
+}
+
+// Load FstVM
+func (vm *FstVM) Load(r io.Reader) (err error) {
+	var n int64
+	if err = binary.Read(r, binary.LittleEndian, &n); err != nil {
+		return
+	}
+	prog := make([]byte, n, n)
+	if _, err = r.Read(prog); err != nil {
+		return
+	}
+	if err = binary.Read(r, binary.LittleEndian, &n); err != nil {
+		return
+	}
+	data := make([]byte, n, n)
+
+	if _, err = r.Read(data); err != nil {
+		return
+	}
+	vm.prog = prog
+	vm.data = string(data)
 	return
 }

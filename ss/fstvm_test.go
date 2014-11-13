@@ -1,6 +1,7 @@
 package ss
 
 import (
+	"bytes"
 	"fmt"
 	"reflect"
 	"sort"
@@ -248,4 +249,28 @@ func TestToInt01(t *testing.T) {
 			t.Errorf("got %v, expected %v\n", r, s.out)
 		}
 	}
+}
+
+func TestSaveAndLoad01(t *testing.T) {
+	inp := PairSlice{
+		{"こんにちは", "hello"},
+		{"世界", "world"},
+		{"すもももももも", "peach"},
+		{"すもも", "peach"},
+		{"すもも", "もも"},
+	}
+	v1, e := Build(inp)
+	if e != nil {
+		t.Errorf("unexpected error %v\n", e)
+	}
+	var b bytes.Buffer
+	if e := v1.Save(&b); e != nil {
+		t.Errorf("unexpected error %v\n", e)
+	}
+	v2 := FstVM{}
+	v2.Load(&b)
+	if !reflect.DeepEqual(v1, v2) {
+		t.Errorf("save:\n%v\nload:\n%v\n", v1, v2)
+	}
+
 }
