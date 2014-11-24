@@ -55,7 +55,7 @@ func toInt(b []byte) int {
 // String returns a string representation of a program.
 func (vm FstVM) String() string {
 	ret := ""
-	for pc, end := 0, len(vm.prog); pc < end; {
+	for pc := 0; pc < len(vm.prog); {
 		p := pc
 		op := instOp(vm.prog[pc] & instMask)
 		sz := int(vm.prog[pc] & valMask)
