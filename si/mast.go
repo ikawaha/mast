@@ -39,11 +39,12 @@ func commonPrefixLen(a, b string) int {
 	return i
 }
 
-func buildMast(input PairSlice) (m *mast) {
+func buildMast(input PairSlice) (m *mast) { //XXX TODO private
 	sort.Sort(input)
-
+	//fmt.Println("sorted---") //XXX
 	const initialMastSize = 1024
 	m = new(mast)
+	dic := make(map[uint][]*state)
 	m.states = make([]*state, 0, initialMastSize)
 	m.finalStates = make([]*state, 0, initialMastSize)
 
@@ -53,29 +54,25 @@ func buildMast(input PairSlice) (m *mast) {
 	}
 	prev := ""
 	for _, pair := range input {
+		//fmt.Println(pair) //XXX
 		in, out := pair.In, pair.Out
 		prefixLen := commonPrefixLen(in, prev)
-		candidate := m.finalStates
 		for i := len(prev); i > prefixLen; i-- {
 			var s *state
-			detected := false
-			if candidate != nil {
-				for _, c := range candidate {
+			if cs, ok := dic[buf[i].hcode]; ok {
+				for _, c := range cs {
 					if c.eq(buf[i]) {
-						buf[i].renew()
 						s = c
-						candidate = c.Prev
-						detected = true
 						break
 					}
 				}
 			}
-			if !detected {
-				candidate = nil
+			if s == nil {
 				s = &state{}
 				*s = *buf[i]
 				buf[i].renew()
 				m.addState(s)
+				dic[s.hcode] = append(dic[s.hcode], s)
 			}
 			buf[i-1].setTransition(prev[i-1], s)
 			s.setInvTransition()
