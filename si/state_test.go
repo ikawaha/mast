@@ -21,10 +21,6 @@ func TestEq01(t *testing.T) {
 		{pair{x: &state{}, y: nil}, false},
 		{pair{&state{ID: 1}, &state{ID: 2}}, true},
 		{pair{&state{IsFinal: true}, &state{IsFinal: false}}, false},
-		//{pair{&state{Output: map[byte]int{1: 1}}, &state{}}, false},
-		//{pair{&state{Output: map[byte]int{1: 1}}, &state{Output: map[byte]int{1: 1}}}, true},
-		//{pair{&state{Output: map[byte]int{1: 1}}, &state{Output: map[byte]int{1: 2}}}, false},
-		//{pair{&state{Output: map[byte]int{1: 1}}, &state{Output: map[byte]int{2: 1}}}, false},
 		{pair{&state{Tail: map[int]bool{1: true}}, &state{Tail: map[int]bool{1: true}}}, true},
 	}
 	for _, cr := range crs {
