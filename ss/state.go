@@ -2,6 +2,7 @@ package ss
 
 import (
 	"fmt"
+	"hash/fnv"
 )
 
 type stringSet map[string]bool
@@ -13,6 +14,7 @@ type state struct {
 	Tail    stringSet
 	IsFinal bool
 	Prev    []*state
+	hcode   uint
 }
 
 func newState() (n *state) {
@@ -45,10 +47,18 @@ func (n *state) tails() (t []string) {
 
 func (n *state) setOutput(ch byte, out string) {
 	n.Output[ch] = out
+
+	const magic = 8191
+	h := fnv.New32a()
+	h.Write([]byte(out))
+	n.hcode += (uint(ch) + uint(h.Sum32())) * magic
 }
 
 func (n *state) setTransition(ch byte, next *state) {
 	n.Trans[ch] = next
+
+	const magic = 1001
+	n.hcode += (uint(ch) + uint(next.ID)) * magic
 }
 
 func (n *state) setInvTransition() {
@@ -63,6 +73,7 @@ func (n *state) renew() {
 	n.Tail = make(stringSet)
 	n.IsFinal = false
 	n.Prev = make([]*state, 0)
+	n.hcode = 0
 }
 
 func (n *state) eq(dst *state) bool {
@@ -71,6 +82,9 @@ func (n *state) eq(dst *state) bool {
 	}
 	if n == dst {
 		return true
+	}
+	if n.hcode != dst.hcode {
+		return false
 	}
 	if len(n.Trans) != len(dst.Trans) ||
 		len(n.Output) != len(dst.Output) ||
