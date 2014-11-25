@@ -28,7 +28,9 @@ func (n *state) hasTail() bool {
 
 func (n *state) addTail(t int) {
 	n.Tail[t] = true
-	n.hcode += uint(t) * 117709
+
+	const magic = 117709
+	n.hcode += uint(t) * magic
 }
 
 func (n *state) tails() (t []int) {
@@ -41,7 +43,9 @@ func (n *state) tails() (t []int) {
 
 func (n *state) setTransition(ch byte, next *state) {
 	n.Trans[ch] = next
-	n.hcode += (uint(ch) + uint(next.ID)) * 1001
+
+	const magic = 1001
+	n.hcode += (uint(ch) + uint(next.ID)) * magic
 }
 
 func (n *state) setInvTransition() {

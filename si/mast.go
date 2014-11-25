@@ -87,24 +87,22 @@ func buildMast(input PairSlice) (m *mast) { //XXX TODO private
 		prev = in
 	}
 	// flush the buf
-	candidate := m.finalStates
 	for i := len(prev); i > 0; i-- {
 		var s *state
-		detected := false
-		if candidate != nil {
-			for _, c := range candidate {
+		if cs, ok := dic[buf[i].hcode]; ok {
+			for _, c := range cs {
 				if c.eq(buf[i]) {
 					s = c
-					candidate = c.Prev
-					detected = true
 					break
 				}
 			}
 		}
-		if !detected {
-			candidate = nil
-			s = buf[i]
+		if s == nil {
+			s = &state{}
+			*s = *buf[i]
+			buf[i].renew()
 			m.addState(s)
+			dic[s.hcode] = append(dic[s.hcode], s)
 		}
 		buf[i-1].setTransition(prev[i-1], s)
 		s.setInvTransition()
