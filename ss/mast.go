@@ -83,9 +83,10 @@ func buildMast(input PairSlice) (m *mast) {
 			if s == nil {
 				s = &state{}
 				*s = *buf[i]
-				buf[i].renew()
 				m.addState(s)
+				dic[s.hcode] = append(dic[s.hcode], s)
 			}
+			buf[i].renew()
 			buf[i-1].setTransition(prev[i-1], s)
 			s.setInvTransition()
 		}
