@@ -13,6 +13,7 @@ install:
 script:
   - go test -v ./ss
   - go test -v ./si
+  - go test -v ./si32
   - /bin/sh ./go-coverall.sh
 
 #branches:
