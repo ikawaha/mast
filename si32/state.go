@@ -1,27 +1,24 @@
-package ss
+package si32
 
-import (
-	"fmt"
-	"hash/fnv"
-)
+import "fmt"
 
-type stringSet map[string]bool
+type int32Set map[int32]bool
 
 type state struct {
 	ID      int
 	Trans   map[byte]*state
-	Output  map[byte]string
-	Tail    stringSet
+	Output  map[byte]int32
+	Tail    int32Set
 	IsFinal bool
 	Prev    []*state
-	hcode   uint
+	hcode   int64
 }
 
 func newState() (n *state) {
 	n = new(state)
 	n.Trans = make(map[byte]*state)
-	n.Output = make(map[byte]string)
-	n.Tail = make(stringSet)
+	n.Output = make(map[byte]int32)
+	n.Tail = make(int32Set)
 	return
 }
 
@@ -29,36 +26,47 @@ func (n *state) hasTail() bool {
 	return len(n.Tail) != 0
 }
 
-func (n *state) addTail(t string) {
+func (n *state) addTail(t int32) {
 	n.Tail[t] = true
 }
 
-func (n *state) setTail(s stringSet) {
+/*
+func (n *state) setTail(s int32Set) {
 	n.Tail = s
 }
+*/
 
-func (n *state) tails() (t []string) {
-	t = make([]string, 0, len(n.Tail))
+func (n *state) tails() (t []int32) {
+	t = make([]int32, 0, len(n.Tail))
 	for item := range n.Tail {
 		t = append(t, item)
 	}
 	return
 }
 
-func (n *state) setOutput(ch byte, out string) {
+func (n *state) removeOutput(ch byte) {
+	const magic = 8191
+	if out, ok := n.Output[ch]; ok && out != 0 {
+		n.hcode -= (int64(ch) + int64(out)) * magic
+	}
+	delete(n.Output, ch)
+}
+
+func (n *state) setOutput(ch byte, out int32) {
+	if out == 0 {
+		return
+	}
 	n.Output[ch] = out
 
 	const magic = 8191
-	h := fnv.New32a()
-	h.Write([]byte(out))
-	n.hcode += (uint(ch) + uint(h.Sum32())) * magic
+	n.hcode += (int64(ch) + int64(out)) * magic
 }
 
 func (n *state) setTransition(ch byte, next *state) {
 	n.Trans[ch] = next
 
 	const magic = 1001
-	n.hcode += (uint(ch) + uint(next.ID)) * magic
+	n.hcode += (int64(ch) + int64(next.ID)) * magic
 }
 
 func (n *state) setInvTransition() {
@@ -69,8 +77,8 @@ func (n *state) setInvTransition() {
 
 func (n *state) renew() {
 	n.Trans = make(map[byte]*state)
-	n.Output = make(map[byte]string)
-	n.Tail = make(stringSet)
+	n.Output = make(map[byte]int32)
+	n.Tail = make(int32Set)
 	n.IsFinal = false
 	n.Prev = make([]*state, 0)
 	n.hcode = 0
@@ -118,7 +126,7 @@ func (n *state) String() string {
 	}
 	ret += fmt.Sprintf("%d[%p]:", n.ID, n)
 	for ch := range n.Trans {
-		ret += fmt.Sprintf("%X/%s -->%p, ", ch, n.Output[ch], n.Trans[ch])
+		ret += fmt.Sprintf("%X02/%v -->%p, ", ch, n.Output[ch], n.Trans[ch])
 	}
 	if n.IsFinal {
 		ret += fmt.Sprintf(" (tail:%v) ", n.tails())

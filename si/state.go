@@ -12,6 +12,7 @@ type state struct {
 	Tail    intSet
 	IsFinal bool
 	Prev    []*state
+	hcode   uint
 }
 
 func newState() (n *state) {
@@ -27,10 +28,9 @@ func (n *state) hasTail() bool {
 
 func (n *state) addTail(t int) {
 	n.Tail[t] = true
-}
 
-func (n *state) setTail(s intSet) {
-	n.Tail = s
+	const magic = 117709
+	n.hcode += uint(t) * magic
 }
 
 func (n *state) tails() (t []int) {
@@ -43,6 +43,9 @@ func (n *state) tails() (t []int) {
 
 func (n *state) setTransition(ch byte, next *state) {
 	n.Trans[ch] = next
+
+	const magic = 1001
+	n.hcode += (uint(ch) + uint(next.ID)) * magic
 }
 
 func (n *state) setInvTransition() {
@@ -56,18 +59,19 @@ func (n *state) renew() {
 	n.Tail = make(intSet)
 	n.IsFinal = false
 	n.Prev = make([]*state, 0)
+	n.hcode = 0
 }
 
 func (n *state) eq(dst *state) bool {
 	if n == nil || dst == nil {
 		return false
 	}
-	if n == dst {
-		return true
+	if n.hcode != dst.hcode {
+		return false
 	}
-	if len(n.Trans) != len(dst.Trans) ||
-		len(n.Tail) != len(dst.Tail) ||
-		n.IsFinal != dst.IsFinal {
+	if n.IsFinal != dst.IsFinal ||
+		len(n.Trans) != len(dst.Trans) ||
+		len(n.Tail) != len(dst.Tail) {
 		return false
 	}
 	for ch, next := range n.Trans {

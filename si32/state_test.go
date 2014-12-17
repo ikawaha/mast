@@ -1,4 +1,4 @@
-package si
+package si32
 
 import "testing"
 import "fmt"
@@ -21,7 +21,14 @@ func TestEq01(t *testing.T) {
 		{pair{x: &state{}, y: nil}, false},
 		{pair{&state{ID: 1}, &state{ID: 2}}, true},
 		{pair{&state{IsFinal: true}, &state{IsFinal: false}}, false},
-		{pair{&state{Tail: map[int]bool{1: true}}, &state{Tail: map[int]bool{1: true}}}, true},
+		{pair{&state{Output: map[byte]int32{1: 555}}, &state{}}, false},
+		{pair{&state{Output: map[byte]int32{1: 555}}, &state{Output: map[byte]int32{1: 555}}},
+			true},
+		{pair{&state{Output: map[byte]int32{1: 555}}, &state{Output: map[byte]int32{1: 444}}},
+			false},
+		{pair{&state{Output: map[byte]int32{1: 555}}, &state{Output: map[byte]int32{2: 555}}},
+			false},
+		{pair{&state{Tail: map[int32]bool{555: true}}, &state{Tail: map[int32]bool{555: true}}}, true},
 	}
 	for _, cr := range crs {
 		if rst := cr.call.x.eq(cr.call.y); rst != cr.resp {
@@ -77,10 +84,10 @@ func TestString01(t *testing.T) {
 	}
 	r := &state{}
 	s := state{
-		ID:    1,
-		Trans: map[byte]*state{1: nil, 2: r},
-		//Output:  map[byte]int{3: 1, 4: 2},
-		Tail:    intSet{33: true},
+		ID:      1,
+		Trans:   map[byte]*state{1: nil, 2: r},
+		Output:  map[byte]int32{3: 555, 4: 888},
+		Tail:    int32Set{1111: true},
 		IsFinal: true,
 		Prev:    []*state{nil, r},
 	}
