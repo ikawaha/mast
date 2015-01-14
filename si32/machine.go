@@ -18,6 +18,9 @@ const (
 
 func (o operation) String() string {
 	opName := []string{"OP0", "ACC", "MTC", "BRK", "OUT", "OUB", "OP6", "OP7"}
+	if int(o) >= len(opName) {
+		return fmt.Sprintf("NA%d", o)
+	}
 	return opName[o]
 }
 
