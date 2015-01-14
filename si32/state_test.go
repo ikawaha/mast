@@ -89,7 +89,7 @@ func TestString01(t *testing.T) {
 		Output:  map[byte]int32{3: 555, 4: 888},
 		Tail:    int32Set{1111: true},
 		IsFinal: true,
-		Prev:    []*state{nil, r},
+//		Prev:    []*state{nil, r},
 	}
 	fmt.Println(s.String())
 }
