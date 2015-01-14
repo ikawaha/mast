@@ -22,7 +22,7 @@ func (m *mast) addState(n *state) {
 }
 
 // Build constructs a virtual machine of a finite state transducer from a given inputs.
-func Build(input PairSlice) (f FST, err error) {
+func Build(input PairSlice) (t FST, err error) {
 	m := buildMAST(input)
 	return buildFST(m)
 }
@@ -74,7 +74,6 @@ func buildMAST(input PairSlice) (m mast) {
 			}
 			buf[i].renew()
 			buf[i-1].setTransition(prev[i-1], s)
-			s.setInvTransition()
 		}
 		for i, size := prefixLen+1, len(in); i <= size; i++ {
 			buf[i-1].setTransition(in[i-1], buf[i])
@@ -123,7 +122,6 @@ func buildMAST(input PairSlice) (m mast) {
 			dic[s.hcode] = append(dic[s.hcode], s)
 		}
 		buf[i-1].setTransition(prev[i-1], s)
-		s.setInvTransition()
 	}
 	m.initialState = buf[0]
 	m.addState(buf[0])
