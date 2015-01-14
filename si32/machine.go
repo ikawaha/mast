@@ -1,7 +1,10 @@
 package si32
 
 import (
+	"bufio"
+	"encoding/binary"
 	"fmt"
+	"io"
 	"sort"
 	"unsafe"
 )
@@ -66,7 +69,7 @@ func buildFST(m mast) (t FST, err error) {
 	var (
 		prog []instruction
 		data []int32
-		code instruction // temporary
+		code instruction // tmp instruction
 	)
 	var edges []byte
 	addrMap := make(map[int]int)
@@ -153,7 +156,7 @@ func (t FST) String() string {
 		code instruction
 		op   operation
 		ch   byte
-		v16  int16
+		v16  uint16
 		v32  int32
 	)
 	ret := ""
@@ -161,7 +164,7 @@ func (t FST) String() string {
 		code = t.prog[pc]
 		op = operation(code[0])
 		ch = code[1]
-		v16 = (*(*int16)(unsafe.Pointer(&code[2])))
+		v16 = (*(*uint16)(unsafe.Pointer(&code[2])))
 		switch operation(op) {
 		case opAccept:
 			//fmt.Printf("%3d %v\t%X %d\n", pc, op, ch, v16) //XXX
@@ -222,18 +225,18 @@ func (t *FST) run(input string) (snap []configuration, accept bool) {
 		pc  int       // program counter
 		op  operation // operation
 		ch  byte      // char
-		v16 int16     // 16bit register
+		v16 uint16    // 16bit register
 		v32 int32     // 32bit register
 		hd  int       // input head
 		out int32     // output
 
-		code instruction // tmp
+		code instruction // tmp instruction
 	)
 	for pc < len(t.prog) && hd <= len(input) {
 		code = t.prog[pc]
 		op = operation(code[0])
 		ch = code[1]
-		v16 = (*(*int16)(unsafe.Pointer(&code[2])))
+		v16 = (*(*uint16)(unsafe.Pointer(&code[2])))
 		//fmt.Printf("pc:%v,op:%v,hd:%v,v16:%v,out:%v\n", pc, op, hd, v16, out) //XXX
 		switch op {
 		case opMatch:
@@ -358,4 +361,241 @@ func (t FST) CommonPrefixSearch(input string) (lens []int, outputs [][]int32) {
 	}
 	return
 
+}
+
+// Write saves a program of finite state transducer (virtual machine)
+func (t FST) Write(w io.Writer) error {
+	var (
+		pc   int
+		code instruction
+		op   operation
+		ch   byte
+		v16  uint16
+		v32  int32
+	)
+	dataLen := int64(len(t.data))
+	if e := binary.Write(w, binary.LittleEndian, dataLen); e != nil {
+		return e
+	}
+	//fmt.Println("data len:", dataLen) //XXX
+	for _, v := range t.data {
+		if e := binary.Write(w, binary.LittleEndian, v); e != nil {
+			return e
+		}
+	}
+
+	progLen := int64(len(t.prog))
+	if e := binary.Write(w, binary.LittleEndian, progLen); e != nil {
+		return e
+	}
+	//fmt.Println("prog len:", progLen) //XXX
+	for pc = 0; pc < len(t.prog); pc++ {
+		code = t.prog[pc]
+		op = operation(code[0])
+		ch = code[1]
+		v16 = (*(*uint16)(unsafe.Pointer(&code[2])))
+
+		// write 'op' and 'ch'
+		if _, e := w.Write(code[0:2]); e != nil {
+			return e
+		}
+		//fmt.Printf("%3d %v\t%X %d\n", pc, op, ch, v16) //XXX
+		switch operation(op) {
+		case opAccept:
+			if ch == 0 {
+				break
+			}
+			pc++
+			code = t.prog[pc]
+			v32 = (*(*int32)(unsafe.Pointer(&code[0]))) //to addr
+			if e := binary.Write(w, binary.LittleEndian, v32); e != nil {
+				return e
+			}
+			//fmt.Printf("%3d \t[%d]\n", pc, v32) //XXX
+			pc++
+			code = t.prog[pc]
+			v32 = (*(*int32)(unsafe.Pointer(&code[0]))) //from addr
+			if e := binary.Write(w, binary.LittleEndian, v32); e != nil {
+				return e
+			}
+			//fmt.Printf("%3d \t[%d]\n", pc, v32) //XXX
+		case opMatch:
+			fallthrough
+		case opBreak:
+			if e := binary.Write(w, binary.LittleEndian, v16); e != nil {
+				return e
+			}
+			if v16 != 0 {
+				break
+			}
+			pc++
+			code = t.prog[pc]
+			v32 = (*(*int32)(unsafe.Pointer(&code[0])))
+			if e := binary.Write(w, binary.LittleEndian, v32); e != nil {
+				return e
+			}
+			//fmt.Printf("%3d \t[%d]\n", pc, v32) //XXX
+		case opOutput:
+			fallthrough
+		case opOutputBreak:
+			if e := binary.Write(w, binary.LittleEndian, v16); e != nil {
+				return e
+			}
+			pc++
+			code = t.prog[pc]
+			v32 = (*(*int32)(unsafe.Pointer(&code[0])))
+			if e := binary.Write(w, binary.LittleEndian, v32); e != nil {
+				return e
+			}
+			//fmt.Printf("%3d \t[%d]\n", pc, v32) //XXX
+
+			if v16 != 0 {
+				break
+			}
+			pc++
+			code = t.prog[pc]
+			v32 = (*(*int32)(unsafe.Pointer(&code[0])))
+			if e := binary.Write(w, binary.LittleEndian, v32); e != nil {
+				return e
+			}
+			//fmt.Printf("%3d \t[%d]\n", pc, v32) //XXX
+		default:
+			return fmt.Errorf("undefined operation error")
+		}
+	}
+	return nil
+}
+
+// Read loads a program of finite state transducer (virtual machine)
+func Read(r io.Reader) (t FST, e error) {
+	var (
+		code instruction
+		op   byte
+		ch   byte
+		v16  uint16
+		v32  int32
+		p    unsafe.Pointer
+		//pc   int //XXX
+	)
+
+	rd := bufio.NewReader(r)
+
+	var dataLen int64
+	if e = binary.Read(rd, binary.LittleEndian, &dataLen); e != nil {
+		return
+	}
+	//fmt.Println("data len:", dataLen) //XXX
+	t.data = make([]int32, 0, dataLen)
+	for i := 0; i < int(dataLen); i++ {
+		if e = binary.Read(rd, binary.LittleEndian, &v32); e != nil {
+			return
+		}
+		t.data = append(t.data, v32)
+	}
+
+	var progLen int64
+	if e = binary.Read(rd, binary.LittleEndian, &progLen); e != nil {
+		return
+	}
+	//fmt.Println("prog len:", progLen) //XXX
+	t.prog = make([]instruction, 0, progLen)
+
+	for e == nil {
+		if op, e = rd.ReadByte(); e != nil {
+			break
+		}
+		if ch, e = rd.ReadByte(); e != nil {
+			break
+		}
+		switch operation(op) {
+		case opAccept:
+			code[0], code[1], code[2], code[3] = op, ch, 0, 0
+			t.prog = append(t.prog, code)
+			//fmt.Printf("%3d %v\t%X %d\n", pc, operation(op), ch, 0) //XXX
+			//pc++                                                    //XXX
+			if ch == 0 {
+				break
+			}
+			if e = binary.Read(rd, binary.LittleEndian, &v32); e != nil {
+				break
+			}
+			p = unsafe.Pointer(&code[0])
+			(*(*int32)(p)) = int32(v32)
+			//fmt.Printf("%3d \t[%d]\n", pc, v32) //XXX
+			//pc++                                //XXX
+			t.prog = append(t.prog, code)
+
+			if e = binary.Read(rd, binary.LittleEndian, &v32); e != nil {
+				break
+			}
+			p = unsafe.Pointer(&code[0])
+			(*(*int32)(p)) = int32(v32)
+			//fmt.Printf("%3d \t[%d]\n", pc, v32) //XXX
+			//pc++                                //XXX
+			t.prog = append(t.prog, code)
+		case opMatch:
+			fallthrough
+		case opBreak:
+			code[0], code[1] = op, ch
+			if e = binary.Read(rd, binary.LittleEndian, &v16); e != nil {
+				break
+			}
+			p = unsafe.Pointer(&code[2])
+			(*(*uint16)(p)) = uint16(v16)
+			//fmt.Printf("%3d %v\t%X %d\n", pc, operation(op), ch, v16) //XXX
+			//pc++                                                      //XXX
+			t.prog = append(t.prog, code)
+
+			if v16 != 0 {
+				break
+			}
+			if e = binary.Read(rd, binary.LittleEndian, &v32); e != nil {
+				break
+			}
+			p = unsafe.Pointer(&code[0])
+			(*(*int32)(p)) = int32(v32)
+			//fmt.Printf("%3d \t[%d]\n", pc, v32) //XXX
+			//pc++                                //XXX
+			t.prog = append(t.prog, code)
+		case opOutput:
+			fallthrough
+		case opOutputBreak:
+			code[0], code[1] = op, ch
+			if e = binary.Read(rd, binary.LittleEndian, &v16); e != nil {
+				break
+			}
+			p = unsafe.Pointer(&code[2])
+			(*(*uint16)(p)) = uint16(v16)
+			//fmt.Printf("%3d %v\t%X %d\n", pc, operation(op), ch, v16) //XXX
+			//pc++                                                      //XXX
+			t.prog = append(t.prog, code)
+			if e = binary.Read(rd, binary.LittleEndian, &v32); e != nil {
+				break
+			}
+			p = unsafe.Pointer(&code[0])
+			(*(*int32)(p)) = int32(v32)
+			//fmt.Printf("%3d \t[%d]\n", pc, v32) //XXX
+			//pc++                                //XXX
+			t.prog = append(t.prog, code)
+
+			if v16 != 0 {
+				break
+			}
+			if e = binary.Read(rd, binary.LittleEndian, &v32); e != nil {
+				break
+			}
+			p = unsafe.Pointer(&code[0])
+			(*(*int32)(p)) = int32(v32)
+			//fmt.Printf("%3d \t[%d]\n", pc, v32) //XXX
+			//pc++                                //XXX
+			t.prog = append(t.prog, code)
+		default:
+			e = fmt.Errorf("invalid format: undefined operation error")
+			break
+		}
+	}
+	if e == io.EOF {
+		e = nil
+	}
+	return
 }
