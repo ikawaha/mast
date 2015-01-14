@@ -1,6 +1,7 @@
 package si32
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"reflect"
@@ -13,7 +14,6 @@ func TestFSTRun01(t *testing.T) {
 		{"feb", 28},
 		{"feb", 29},
 		{"feb", 30},
-
 		{"dec", 31},
 	}
 	m := buildMAST(inp)
@@ -35,7 +35,6 @@ func TestFSTRun02(t *testing.T) {
 		{"feb", 28},
 		{"feb", 29},
 		{"feb", 30},
-
 		{"dec", 31},
 	}
 	m := buildMAST(inp)
@@ -271,5 +270,34 @@ func TestFSTCommonPrefixSearch06(t *testing.T) {
 				t.Errorf("input:%v, got %v %v, expected %v %v\n", cr.in, lens, outs, cr.lens, cr.outs)
 			}
 		}
+	}
+}
+
+func TestFSTSaveAndLoad01(t *testing.T) {
+	inp := PairSlice{
+		{"feb", 28},
+		{"feb", 29},
+		{"apr", 30},
+		{"jan", 31},
+		{"jun", 30},
+		{"jul", 31},
+		{"dec", 31},
+	}
+
+	org, e := Build(inp)
+	if e != nil {
+		t.Errorf("unexpected error: %v\n", e)
+	}
+
+	var b bytes.Buffer
+	org.Write(&b)
+
+	rst, e := Read(&b)
+
+	if !reflect.DeepEqual(org.data, rst.data) {
+		t.Errorf("data:got %v, expected %v\n", rst.data, org.data)
+	}
+	if !reflect.DeepEqual(org.prog, rst.prog) {
+		t.Errorf("prog:got %v, expected %v\n", rst.prog, org.prog)
 	}
 }
