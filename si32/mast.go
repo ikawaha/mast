@@ -21,10 +21,10 @@ func (m *mast) addState(n *state) {
 	}
 }
 
-// Build constructs a virtual machine of a finite state transducer from a given inputs.
-func Build(input PairSlice) (t FST, err error) {
+// BuildFST constructs a virtual machine of a finite state transducer from a given inputs.
+func BuildFST(input PairSlice) (t FST, err error) {
 	m := buildMAST(input)
-	return buildFST(m)
+	return m.buildMachine()
 }
 
 func commonPrefix(a, b string) string {

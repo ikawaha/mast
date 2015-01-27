@@ -1,9 +1,11 @@
 package si32
 
-import "testing"
-import "fmt"
+import (
+	"fmt"
+	"testing"
+)
 
-func TestEq01(t *testing.T) {
+func TestStateEq01(t *testing.T) {
 	type pair struct {
 		x *state
 		y *state
@@ -40,7 +42,7 @@ func TestEq01(t *testing.T) {
 	}
 }
 
-func TestEq02(t *testing.T) {
+func TestStateEq02(t *testing.T) {
 	x := &state{ID: 1}
 	y := &state{ID: 2}
 	a := &state{
@@ -70,7 +72,7 @@ func TestEq02(t *testing.T) {
 
 }
 
-func TestString01(t *testing.T) {
+func TestStateString01(t *testing.T) {
 	crs := []struct {
 		call *state
 		resp string
@@ -89,7 +91,6 @@ func TestString01(t *testing.T) {
 		Output:  map[byte]int32{3: 555, 4: 888},
 		Tail:    int32Set{1111: true},
 		IsFinal: true,
-//		Prev:    []*state{nil, r},
 	}
 	fmt.Println(s.String())
 }

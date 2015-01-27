@@ -19,7 +19,7 @@ func TestFSTRun01(t *testing.T) {
 	m := buildMAST(inp)
 	m.dot(os.Stdout)
 
-	fst, _ := buildFST(m)
+	fst, _ := m.buildMachine()
 	fmt.Println(fst)
 
 	config, ok := fst.run("feb")
@@ -40,7 +40,7 @@ func TestFSTRun02(t *testing.T) {
 	m := buildMAST(inp)
 	m.dot(os.Stdout)
 
-	fst, _ := buildFST(m)
+	fst, _ := m.buildMachine()
 	fmt.Println(fst)
 
 	config, ok := fst.run("dec")
@@ -56,7 +56,7 @@ func TestFSTSearch01(t *testing.T) {
 		{"1a22xss", 111},
 		{"1b22yss", 222},
 	}
-	vm, e := Build(inp)
+	vm, e := BuildFST(inp)
 	if e != nil {
 		t.Errorf("unexpected error: %v\n", e)
 	}
@@ -75,7 +75,7 @@ func TestFSTSearch02(t *testing.T) {
 		{"1a22xss", 222},
 		{"1a22yss", 333},
 	}
-	vm, e := Build(inp)
+	vm, e := BuildFST(inp)
 	if e != nil {
 		t.Errorf("unexpected error: %v\n", e)
 	}
@@ -94,7 +94,7 @@ func TestFSTSearch03(t *testing.T) {
 		{"1a22xss", 222},
 		{"1a22xss", 333},
 	}
-	vm, e := Build(inp)
+	vm, e := BuildFST(inp)
 	if e != nil {
 		t.Errorf("unexpected error: %v\n", e)
 	}
@@ -114,7 +114,7 @@ func TestFSTSearch04(t *testing.T) {
 		{"1a22xss", 222},
 		{"1a22xss", 333},
 	}
-	vm, e := Build(inp)
+	vm, e := BuildFST(inp)
 	if e != nil {
 		t.Errorf("unexpected error: %v\n", e)
 	}
@@ -135,7 +135,7 @@ func TestFSTSearch05(t *testing.T) {
 		{"1a22xss", 0},
 		{"1a22xss", 0},
 	}
-	vm, e := Build(inp)
+	vm, e := BuildFST(inp)
 	if e != nil {
 		t.Errorf("unexpected error: %v\n", e)
 	}
@@ -157,7 +157,7 @@ func TestFSTSearch06(t *testing.T) {
 		{"すもも", 333},
 		{"すもも", 444},
 	}
-	vm, e := Build(inp)
+	vm, e := BuildFST(inp)
 	if e != nil {
 		t.Errorf("unexpected error: %v\n", e)
 	}
@@ -187,7 +187,7 @@ func TestFSTSearch06(t *testing.T) {
 	}
 }
 
-func TestFSTPrefixSearch06(t *testing.T) {
+func TestFSTPrefixSearch01(t *testing.T) {
 	inp := PairSlice{
 		{"こんにちは", 111},
 		{"世界", 222},
@@ -195,7 +195,7 @@ func TestFSTPrefixSearch06(t *testing.T) {
 		{"すもも", 333},
 		{"すもも", 444},
 	}
-	vm, e := Build(inp)
+	vm, e := BuildFST(inp)
 	if e != nil {
 		t.Errorf("unexpected error: %v\n", e)
 	}
@@ -229,7 +229,7 @@ func TestFSTPrefixSearch06(t *testing.T) {
 	}
 }
 
-func TestFSTCommonPrefixSearch06(t *testing.T) {
+func TestFSTCommonPrefixSearch01(t *testing.T) {
 	inp := PairSlice{
 		{"こんにちは", 111},
 		{"世界", 222},
@@ -237,7 +237,7 @@ func TestFSTCommonPrefixSearch06(t *testing.T) {
 		{"すもも", 333},
 		{"すもも", 444},
 	}
-	vm, e := Build(inp)
+	vm, e := BuildFST(inp)
 	if e != nil {
 		t.Errorf("unexpected error: %v\n", e)
 	}
@@ -284,7 +284,7 @@ func TestFSTSaveAndLoad01(t *testing.T) {
 		{"dec", 31},
 	}
 
-	org, e := Build(inp)
+	org, e := BuildFST(inp)
 	if e != nil {
 		t.Errorf("unexpected error: %v\n", e)
 	}
@@ -292,7 +292,8 @@ func TestFSTSaveAndLoad01(t *testing.T) {
 	var b bytes.Buffer
 	org.Write(&b)
 
-	rst, e := Read(&b)
+	var rst FST
+	e = rst.Read(&b)
 
 	if !reflect.DeepEqual(org.data, rst.data) {
 		t.Errorf("data:got %v, expected %v\n", rst.data, org.data)

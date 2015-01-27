@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestBuildMAST01(t *testing.T) {
+func TestMASTBuildMAST01(t *testing.T) {
 	inp := PairSlice{}
 	m := buildMAST(inp)
 	if m.initialState.ID != 0 {
