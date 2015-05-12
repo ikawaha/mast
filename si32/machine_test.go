@@ -1,6 +1,16 @@
+//  Copyright (c) 2015 ikawaha.
+//  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file
+//  except in compliance with the License. You may obtain a copy of the License at
+//    http://www.apache.org/licenses/LICENSE-2.0
+//  Unless required by applicable law or agreed to in writing, software distributed under the
+//  License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+//  either express or implied. See the License for the specific language governing permissions
+//  and limitations under the License.
+
 package si32
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"os"
@@ -51,12 +61,31 @@ func TestFSTRun02(t *testing.T) {
 
 }
 
+func TestFSTRun03(t *testing.T) {
+	inp := PairSlice{
+		{"feb", 0},
+		{"february", 1},
+	}
+	m := buildMAST(inp)
+	m.dot(os.Stdout)
+
+	fst, _ := m.buildMachine()
+	fmt.Println(fst)
+
+	input := "february"
+	config, ok := fst.run(input)
+	if !ok {
+		t.Errorf("input:%v, config:%+v, accept:%v", input, config, ok)
+	}
+	fmt.Println(config)
+}
+
 func TestFSTSearch01(t *testing.T) {
 	inp := PairSlice{
 		{"1a22xss", 111},
 		{"1b22yss", 222},
 	}
-	vm, e := BuildFST(inp)
+	vm, e := Build(inp)
 	if e != nil {
 		t.Errorf("unexpected error: %v\n", e)
 	}
@@ -75,7 +104,7 @@ func TestFSTSearch02(t *testing.T) {
 		{"1a22xss", 222},
 		{"1a22yss", 333},
 	}
-	vm, e := BuildFST(inp)
+	vm, e := Build(inp)
 	if e != nil {
 		t.Errorf("unexpected error: %v\n", e)
 	}
@@ -94,7 +123,7 @@ func TestFSTSearch03(t *testing.T) {
 		{"1a22xss", 222},
 		{"1a22xss", 333},
 	}
-	vm, e := BuildFST(inp)
+	vm, e := Build(inp)
 	if e != nil {
 		t.Errorf("unexpected error: %v\n", e)
 	}
@@ -114,7 +143,7 @@ func TestFSTSearch04(t *testing.T) {
 		{"1a22xss", 222},
 		{"1a22xss", 333},
 	}
-	vm, e := BuildFST(inp)
+	vm, e := Build(inp)
 	if e != nil {
 		t.Errorf("unexpected error: %v\n", e)
 	}
@@ -135,7 +164,7 @@ func TestFSTSearch05(t *testing.T) {
 		{"1a22xss", 0},
 		{"1a22xss", 0},
 	}
-	vm, e := BuildFST(inp)
+	vm, e := Build(inp)
 	if e != nil {
 		t.Errorf("unexpected error: %v\n", e)
 	}
@@ -157,7 +186,7 @@ func TestFSTSearch06(t *testing.T) {
 		{"すもも", 333},
 		{"すもも", 444},
 	}
-	vm, e := BuildFST(inp)
+	vm, e := Build(inp)
 	if e != nil {
 		t.Errorf("unexpected error: %v\n", e)
 	}
@@ -195,7 +224,7 @@ func TestFSTPrefixSearch01(t *testing.T) {
 		{"すもも", 333},
 		{"すもも", 444},
 	}
-	vm, e := BuildFST(inp)
+	vm, e := Build(inp)
 	if e != nil {
 		t.Errorf("unexpected error: %v\n", e)
 	}
@@ -237,7 +266,7 @@ func TestFSTCommonPrefixSearch01(t *testing.T) {
 		{"すもも", 333},
 		{"すもも", 444},
 	}
-	vm, e := BuildFST(inp)
+	vm, e := Build(inp)
 	if e != nil {
 		t.Errorf("unexpected error: %v\n", e)
 	}
@@ -284,21 +313,89 @@ func TestFSTSaveAndLoad01(t *testing.T) {
 		{"dec", 31},
 	}
 
-	org, e := BuildFST(inp)
+	org, e := Build(inp)
 	if e != nil {
 		t.Errorf("unexpected error: %v\n", e)
 	}
 
 	var b bytes.Buffer
-	org.Write(&b)
+	n, e := org.WriteTo(&b)
+	if e != nil {
+		t.Errorf("unexpected error: %v\n", e)
+	}
+	if n != int64(b.Len()) {
+		t.Errorf("write len: got %v, expected %v", n, b.Len())
+	}
 
-	var rst FST
-	e = rst.Read(&b)
+	rst, e := Read(&b)
+	if e != nil {
+		t.Errorf("unexpected error: %v\n", e)
+	}
 
 	if !reflect.DeepEqual(org.data, rst.data) {
 		t.Errorf("data:got %v, expected %v\n", rst.data, org.data)
 	}
 	if !reflect.DeepEqual(org.prog, rst.prog) {
 		t.Errorf("prog:got %v, expected %v\n", rst.prog, org.prog)
+	}
+}
+
+func TestFSTOperationString(t *testing.T) {
+
+	ps := []struct {
+		ope  operation
+		name string
+	}{
+		{0, "OP0"},
+		{1, "ACC"},
+		{2, "ACB"},
+		{3, "MTC"},
+		{4, "BRK"},
+		{5, "OUT"},
+		{6, "OUB"},
+		{7, "OP7"},
+		{8, "NA[8]"},
+		{9, "NA[9]"},
+	}
+
+	for _, p := range ps {
+		if p.ope.String() != p.name {
+			t.Errorf("got %v, expected %v", p.ope.String(), p.name)
+		}
+	}
+}
+
+func TestFSTStress(t *testing.T) {
+	fp, err := os.Open("./_test/words.txt")
+	if err != nil {
+		t.Fatalf("unexpected error, %v", err)
+	}
+	var ps PairSlice
+	s := bufio.NewScanner(fp)
+	for i := 0; s.Scan(); i++ {
+		p := Pair{In: s.Text(), Out: int32(i)}
+		ps = append(ps, p)
+	}
+	if e := s.Err(); e != nil {
+		t.Fatalf("unexpected error, %v", e)
+	}
+	m := buildMAST(ps)
+	fst, err := m.buildMachine()
+	if err != nil {
+		t.Fatalf("unexpected error, %v", err)
+	}
+
+	for _, p := range ps {
+		ids := fst.Search(p.In)
+		if !func(s []int32, x int32) bool {
+			for i := range s {
+				if x == s[i] {
+					return true
+				}
+			}
+			return false
+		}(ids, p.Out) {
+			t.Errorf("input:%v, got %v, but not in %v", p.In, ids, p.Out)
+		}
 	}
 }
