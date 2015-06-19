@@ -1,3 +1,12 @@
+//  Copyright (c) 2015 ikawaha.
+//  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file
+//  except in compliance with the License. You may obtain a copy of the License at
+//    http://www.apache.org/licenses/LICENSE-2.0
+//  Unless required by applicable law or agreed to in writing, software distributed under the
+//  License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+//  either express or implied. See the License for the specific language governing permissions
+//  and limitations under the License.
+
 package si32
 
 import (
@@ -21,8 +30,8 @@ func (m *mast) addState(n *state) {
 	}
 }
 
-// BuildFST constructs a virtual machine of a finite state transducer from a given inputs.
-func BuildFST(input PairSlice) (t FST, err error) {
+// Build constructs a virtual machine of a finite state transducer from a given inputs.
+func Build(input PairSlice) (t FST, err error) {
 	m := buildMAST(input)
 	return m.buildMachine()
 }
@@ -82,18 +91,19 @@ func buildMAST(input PairSlice) (m mast) {
 			buf[len(in)].IsFinal = true
 		}
 		for j := 1; j < prefixLen+1; j++ {
-			if buf[j-1].Output[in[j-1]] == out {
-				out = 0
-				break
-			}
-			var outSuff int32
-			outSuff = buf[j-1].Output[in[j-1]]
-			buf[j-1].removeOutput(in[j-1]) // clear the prev edge
-			for ch := range buf[j].Trans {
-				buf[j].setOutput(ch, outSuff)
-			}
-			if buf[j].IsFinal && outSuff != 0 {
-				buf[j].addTail(outSuff)
+			outSuff, ok := buf[j-1].Output[in[j-1]]
+			if ok {
+				if outSuff == out {
+					out = 0
+					break
+				}
+				buf[j-1].removeOutput(in[j-1]) // clear the prev edge
+				for ch := range buf[j].Trans {
+					buf[j].setOutput(ch, outSuff)
+				}
+				if buf[j].IsFinal && outSuff != 0 {
+					buf[j].addTail(outSuff)
+				}
 			}
 		}
 		if in != prev {
