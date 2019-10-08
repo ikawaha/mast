@@ -24,41 +24,45 @@ const (
 	opAccept      operation = 1
 	opAcceptBreak operation = 2
 	opMatch       operation = 3
-	opBreak       operation = 4
+	opMatchBreak  operation = 4
 	opOutput      operation = 5
 	opOutputBreak operation = 6
 )
 
 func (o operation) String() string {
-	opName := []string{"OP0", "ACC", "ACB", "MTC", "BRK", "OUT", "OUB", "OP7"}
+	opName := []string{
+		"UNDEF0",
+		"ACCEPT",
+		"ACCEPTB",
+		"MATCH",
+		"MATCHB",
+		"OUTPUT",
+		"OUTPUTB",
+		"UNDEF7",
+	}
 	if int(o) >= len(opName) {
 		return fmt.Sprintf("NA[%d]", o)
 	}
 	return opName[o]
 }
 
-type instruction [4]byte
+type Program []Instruction
+type Instruction [4]byte
 
-// FST represents a finite state transducer.
+// FST represents a finite State transducer VM.
 type FST struct {
-	prog []instruction
-	data []int32
+	Program []Instruction
+	Data    []int32
 }
 
-// Configuration represents a FST configuration.
-type configuration struct {
-	pc  int     // program counter
-	hd  int     // input head
-	out []int32 // outputs
+// Configuration represents a FST Configuration.
+type Configuration struct {
+	PC      int     // program counter
+	Head    int     // input head
+	Outputs []int32 // outputs
 }
 
 const maxUint16 = 1<<16 - 1
-
-type int32Slice []int32
-
-func (p int32Slice) Len() int           { return len(p) }
-func (p int32Slice) Less(i, j int) bool { return p[i] < p[j] }
-func (p int32Slice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
 type byteSlice []byte
 
@@ -66,29 +70,27 @@ func (p byteSlice) Len() int           { return len(p) }
 func (p byteSlice) Less(i, j int) bool { return p[i] < p[j] }
 func (p byteSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
-func invert(prog []instruction) []instruction {
-	size := len(prog)
-	inv := make([]instruction, size)
-	for i := range prog {
-		inv[i] = prog[size-1-i]
+func (p Program) Reverse() {
+	size := len(p)
+	for i := 0; i < size/2; i++ {
+		p[i], p[size-1-i] = p[size-1-i], p[i]
 	}
-	return inv
 }
 
-func (m mast) buildMachine() (t FST, err error) {
+func (m MAST) BuildFST() (t FST, err error) {
 	var (
-		prog []instruction
+		prog Program
 		data []int32
-		code instruction // tmp instruction
+		code Instruction // tmp Instruction
 	)
 	var edges []byte
 	addrMap := make(map[int]int)
-	for _, s := range m.states {
+	for _, s := range m.States {
 		edges = edges[:0]
 		for ch := range s.Trans {
 			edges = append(edges, ch)
 		}
-		if len(edges) > 0 {
+		if len(edges) > 0 && !sort.IsSorted(byteSlice(edges)) {
 			sort.Sort(byteSlice(edges))
 		}
 		for i, size := 0, len(edges); i < size; i++ {
@@ -96,7 +98,7 @@ func (m mast) buildMachine() (t FST, err error) {
 			next := s.Trans[ch]
 			addr, ok := addrMap[next.ID]
 			if !ok && !next.IsFinal {
-				err = fmt.Errorf("next addr is undefined: state(%v), input(%X)", s.ID, ch)
+				err = fmt.Errorf("next addr is undefined: State(%v), input(%X)", s.ID, ch)
 				return
 			}
 			jump := len(prog) - addr + 1
@@ -105,7 +107,7 @@ func (m mast) buildMachine() (t FST, err error) {
 			out, ok := s.Output[ch]
 			if !ok {
 				if i == 0 {
-					op = opBreak
+					op = opMatchBreak
 				} else {
 					op = opMatch
 				}
@@ -164,7 +166,9 @@ func (m mast) buildMachine() (t FST, err error) {
 		}
 		addrMap[s.ID] = len(prog)
 	}
-	t = FST{prog: invert(prog), data: data}
+
+	prog.Reverse()
+	t = FST{Program: prog, Data: data}
 	return
 }
 
@@ -172,15 +176,15 @@ func (m mast) buildMachine() (t FST, err error) {
 func (t FST) String() string {
 	var (
 		pc   int
-		code instruction
+		code Instruction
 		op   operation
 		ch   byte
 		v16  uint16
 		v32  int32
 	)
 	ret := ""
-	for pc = 0; pc < len(t.prog); pc++ {
-		code = t.prog[pc]
+	for pc = 0; pc < len(t.Program); pc++ {
+		code = t.Program[pc]
 		op = operation(code[0])
 		ch = code[1]
 		v16 = (*(*uint16)(unsafe.Pointer(&code[2])))
@@ -188,59 +192,59 @@ func (t FST) String() string {
 		case opAccept:
 			fallthrough
 		case opAcceptBreak:
-			//fmt.Printf("%3d %v\t%X %d\n", pc, op, ch, v16) //XXX
+			//fmt.Printf("%3d %v\t%X %d\n", PC, op, ch, v16) //XXX
 			ret += fmt.Sprintf("%3d %v\t%d %d\n", pc, op, ch, v16)
 			if ch == 0 {
 				break
 			}
 			pc++
-			code = t.prog[pc]
+			code = t.Program[pc]
 			to := (*(*int32)(unsafe.Pointer(&code[0])))
 			ret += fmt.Sprintf("%3d [%d]\n", pc, to)
 			pc++
-			code = t.prog[pc]
+			code = t.Program[pc]
 			from := (*(*int32)(unsafe.Pointer(&code[0])))
-			ret += fmt.Sprintf("%3d [%d] %v\n", pc, from, t.data[from:to]) //FIXME
+			ret += fmt.Sprintf("%3d [%d] %v\n", pc, from, t.Data[from:to]) //FIXME
 		case opMatch:
 			fallthrough
-		case opBreak:
-			//fmt.Printf("%3d %v\t%02X %d\n", pc, op, ch, v16) //XXX
+		case opMatchBreak:
+			//fmt.Printf("%3d %v\t%02X %d\n", PC, op, ch, v16) //XXX
 			ret += fmt.Sprintf("%3d %v\t%02X(%c) %d\n", pc, op, ch, ch, v16)
 			if v16 == 0 {
 				pc++
-				code = t.prog[pc]
+				code = t.Program[pc]
 				v32 = (*(*int32)(unsafe.Pointer(&code[0])))
-				//fmt.Printf("%3d [%d]\n", pc, v32) //XXX
+				//fmt.Printf("%3d [%d]\n", PC, v32) //XXX
 				ret += fmt.Sprintf("%3d jmp[%d]\n", pc, v32)
 				//break
 			}
 		case opOutput:
 			fallthrough
 		case opOutputBreak:
-			//fmt.Printf("%3d %v\t%02X %d\n", pc, op, ch, v16) //XXX
+			//fmt.Printf("%3d %v\t%02X %d\n", PC, op, ch, v16) //XXX
 			ret += fmt.Sprintf("%3d %v\t%02X(%c) %d\n", pc, op, ch, ch, v16)
 			if v16 == 0 {
 				pc++
-				code = t.prog[pc]
+				code = t.Program[pc]
 				v32 = (*(*int32)(unsafe.Pointer(&code[0])))
-				//fmt.Printf("%3d [%d]\n", pc, v32) //XXX
+				//fmt.Printf("%3d [%d]\n", PC, v32) //XXX
 				ret += fmt.Sprintf("%3d jmp[%d]\n", pc, v32)
 				//break
 			}
 			pc++
-			code = t.prog[pc]
+			code = t.Program[pc]
 			v32 = (*(*int32)(unsafe.Pointer(&code[0])))
-			//fmt.Printf("%3d [%d]\n", pc, v32) //XXX
+			//fmt.Printf("%3d [%d]\n", PC, v32) //XXX
 			ret += fmt.Sprintf("%3d [%d]\n", pc, v32)
 		default:
-			//fmt.Printf("%3d UNDEF %v\n", pc, code)
+			//fmt.Printf("%3d UNDEF %v\n", PC, code)
 			ret += fmt.Sprintf("%3d UNDEF %v\n", pc, code)
 		}
 	}
 	return ret
 }
 
-func (t *FST) run(input string) (snap []configuration, accept bool) {
+func (t *FST) run(input string) (snap []Configuration, accept bool) {
 	var (
 		pc  int       // program counter
 		op  operation // operation
@@ -250,23 +254,23 @@ func (t *FST) run(input string) (snap []configuration, accept bool) {
 		hd  int       // input head
 		out int32     // output
 
-		code instruction // tmp instruction
+		code Instruction // tmp Instruction
 	)
-	for pc < len(t.prog) && hd <= len(input) {
-		code = t.prog[pc]
+	for pc < len(t.Program) && hd <= len(input) {
+		code = t.Program[pc]
 		op = operation(code[0])
 		ch = code[1]
 		v16 = (*(*uint16)(unsafe.Pointer(&code[2])))
-		//fmt.Printf("pc:%v,op:%v,hd:%v,v16:%v,out:%v\n", pc, op, hd, v16, out) //XXX
+		//fmt.Printf("PC:%v,op:%v,Head:%v,v16:%v,Outputs:%v\n", PC, op, Head, v16, Outputs) //XXX
 		switch op {
 		case opMatch:
 			fallthrough
-		case opBreak:
+		case opMatchBreak:
 			if hd == len(input) {
 				goto L_END
 			}
 			if ch != input[hd] {
-				if op == opBreak {
+				if op == opMatchBreak {
 					return
 				}
 				if v16 == 0 {
@@ -279,7 +283,7 @@ func (t *FST) run(input string) (snap []configuration, accept bool) {
 				pc += int(v16)
 			} else {
 				pc++
-				code = t.prog[pc]
+				code = t.Program[pc]
 				v32 = (*(*int32)(unsafe.Pointer(&code[0])))
 				//fmt.Printf("ex jump:%d\n", v32) //XXX
 				pc += int(v32)
@@ -304,13 +308,13 @@ func (t *FST) run(input string) (snap []configuration, accept bool) {
 				continue
 			}
 			pc++
-			code = t.prog[pc]
+			code = t.Program[pc]
 			out = (*(*int32)(unsafe.Pointer(&code[0])))
 			if v16 > 0 {
 				pc += int(v16)
 			} else {
 				pc++
-				code = t.prog[pc]
+				code = t.Program[pc]
 				v32 = (*(*int32)(unsafe.Pointer(&code[0])))
 				//fmt.Printf("ex jump:%d\n", v32) //XXX
 				pc += int(v32)
@@ -320,17 +324,17 @@ func (t *FST) run(input string) (snap []configuration, accept bool) {
 		case opAccept:
 			fallthrough
 		case opAcceptBreak:
-			c := configuration{pc: pc, hd: hd}
+			c := Configuration{PC: pc, Head: hd}
 			pc++
 			if ch == 0 {
-				c.out = []int32{out}
+				c.Outputs = []int32{out}
 			} else {
-				code = t.prog[pc]
+				code = t.Program[pc]
 				to := (*(*int32)(unsafe.Pointer(&code[0])))
 				pc++
-				code = t.prog[pc]
+				code = t.Program[pc]
 				from := (*(*int32)(unsafe.Pointer(&code[0])))
-				c.out = t.data[from:to]
+				c.Outputs = t.Data[from:to]
 				pc++
 			}
 			//fmt.Printf("conf: %+v\n", c) //XXX
@@ -348,28 +352,28 @@ func (t *FST) run(input string) (snap []configuration, accept bool) {
 		}
 	}
 L_END:
-	//fmt.Printf("[[L_END]]pc:%d, op:%s, ch:[%X]\n", pc, op, ch) //XXX
+	//fmt.Printf("[[L_END]]PC:%d, op:%s, ch:[%X]\n", PC, op, ch) //XXX
 	if hd != len(input) {
 		return
 	}
 	if op != opAccept && op != opAcceptBreak {
-		//fmt.Printf("[[NOT ACCEPT]]pc:%d, op:%s, ch:[%X]\n", pc, op, ch) //XXX
+		//fmt.Printf("[[NOT ACCEPT]]PC:%d, op:%s, ch:[%X]\n", PC, op, ch) //XXX
 		return
 
 	}
 	accept = true
-	//fmt.Printf("[[ACCEPT]]pc:%d, op:%s, ch:[%X]\n", pc, op, ch) //XXX
+	//fmt.Printf("[[ACCEPT]]PC:%d, op:%s, ch:[%X]\n", PC, op, ch) //XXX
 	return
 }
 
-// Search runs a finite state transducer for a given input and returns outputs if accepted otherwise nil.
+// Search runs a finite State transducer for a given input and returns outputs if accepted otherwise nil.
 func (t FST) Search(input string) []int32 {
 	snap, acc := t.run(input)
 	if !acc || len(snap) == 0 {
 		return nil
 	}
 	c := snap[len(snap)-1]
-	return c.out
+	return c.Outputs
 }
 
 // PrefixSearch returns the longest commom prefix keyword and it's length in given input
@@ -380,7 +384,7 @@ func (t FST) PrefixSearch(input string) (length int, output []int32) {
 		return -1, nil
 	}
 	c := snap[len(snap)-1]
-	return c.hd, c.out
+	return c.Head, c.Outputs
 
 }
 
@@ -392,46 +396,46 @@ func (t FST) CommonPrefixSearch(input string) (lens []int, outputs [][]int32) {
 		return
 	}
 	for _, c := range snap {
-		lens = append(lens, c.hd)
-		outputs = append(outputs, c.out)
+		lens = append(lens, c.Head)
+		outputs = append(outputs, c.Outputs)
 	}
 	return
 
 }
 
-// WriteTo saves a program of finite state transducer.
+// WriteTo saves a program of finite State transducer.
 func (t FST) WriteTo(w io.Writer) (n int64, err error) {
 	var (
 		pc   int
-		code instruction
+		code Instruction
 		op   operation
 		ch   byte
 		v16  uint16
 		v32  int32
 	)
-	dataLen := int64(len(t.data))
-	//fmt.Println("data len:", dataLen)
+	dataLen := int64(len(t.Data))
+	//fmt.Println("Data len:", dataLen)
 	if err = binary.Write(w, binary.LittleEndian, dataLen); err != nil {
 		return
 	}
 	n += int64(binary.Size(dataLen))
-	//fmt.Println("data len:", dataLen) //XXX
-	for _, v := range t.data {
+	//fmt.Println("Data len:", dataLen) //XXX
+	for _, v := range t.Data {
 		if err = binary.Write(w, binary.LittleEndian, v); err != nil {
 			return
 		}
 		n += int64(binary.Size(v))
 	}
 
-	progLen := int64(len(t.prog))
+	progLen := int64(len(t.Program))
 	if err = binary.Write(w, binary.LittleEndian, progLen); err != nil {
 		return
 	}
 	n += int64(binary.Size(progLen))
 
-	//fmt.Println("prog len:", progLen) //XXX
-	for pc = 0; pc < len(t.prog); pc++ {
-		code = t.prog[pc]
+	//fmt.Println("Program len:", progLen) //XXX
+	for pc = 0; pc < len(t.Program); pc++ {
+		code = t.Program[pc]
 		op = operation(code[0])
 		ch = code[1]
 		v16 = (*(*uint16)(unsafe.Pointer(&code[2])))
@@ -443,7 +447,7 @@ func (t FST) WriteTo(w io.Writer) (n int64, err error) {
 			return
 		}
 		n += int64(tmp)
-		//fmt.Printf("%3d %v\t%X %d\n", pc, op, ch, v16) //XXX
+		//fmt.Printf("%3d %v\t%X %d\n", PC, op, ch, v16) //XXX
 		switch operation(op) {
 		case opAccept:
 			fallthrough
@@ -452,24 +456,24 @@ func (t FST) WriteTo(w io.Writer) (n int64, err error) {
 				break
 			}
 			pc++
-			code = t.prog[pc]
+			code = t.Program[pc]
 			v32 = (*(*int32)(unsafe.Pointer(&code[0]))) //to addr
 			if err = binary.Write(w, binary.LittleEndian, v32); err != nil {
 				return
 			}
 			n += int64(binary.Size(v32))
-			//fmt.Printf("%3d \t[%d]\n", pc, v32) //XXX
+			//fmt.Printf("%3d \t[%d]\n", PC, v32) //XXX
 			pc++
-			code = t.prog[pc]
+			code = t.Program[pc]
 			v32 = (*(*int32)(unsafe.Pointer(&code[0]))) //from addr
 			if err = binary.Write(w, binary.LittleEndian, v32); err != nil {
 				return
 			}
 			n += int64(binary.Size(v32))
-			//fmt.Printf("%3d \t[%d]\n", pc, v32) //XXX
+			//fmt.Printf("%3d \t[%d]\n", PC, v32) //XXX
 		case opMatch:
 			fallthrough
-		case opBreak:
+		case opMatchBreak:
 			if err = binary.Write(w, binary.LittleEndian, v16); err != nil {
 				return
 			}
@@ -478,13 +482,13 @@ func (t FST) WriteTo(w io.Writer) (n int64, err error) {
 				break
 			}
 			pc++
-			code = t.prog[pc]
+			code = t.Program[pc]
 			v32 = (*(*int32)(unsafe.Pointer(&code[0])))
 			if err = binary.Write(w, binary.LittleEndian, v32); err != nil {
 				return
 			}
 			n += int64(binary.Size(v32))
-			//fmt.Printf("%3d \t[%d]\n", pc, v32) //XXX
+			//fmt.Printf("%3d \t[%d]\n", PC, v32) //XXX
 		case opOutput:
 			fallthrough
 		case opOutputBreak:
@@ -493,25 +497,25 @@ func (t FST) WriteTo(w io.Writer) (n int64, err error) {
 			}
 			n += int64(binary.Size(v16))
 			pc++
-			code = t.prog[pc]
+			code = t.Program[pc]
 			v32 = (*(*int32)(unsafe.Pointer(&code[0])))
 			if err = binary.Write(w, binary.LittleEndian, v32); err != nil {
 				return
 			}
 			n += int64(binary.Size(v32))
-			//fmt.Printf("%3d \t[%d]\n", pc, v32) //XXX
+			//fmt.Printf("%3d \t[%d]\n", PC, v32) //XXX
 
 			if v16 != 0 {
 				break
 			}
 			pc++
-			code = t.prog[pc]
+			code = t.Program[pc]
 			v32 = (*(*int32)(unsafe.Pointer(&code[0])))
 			if err = binary.Write(w, binary.LittleEndian, v32); err != nil {
 				return
 			}
 			n += int64(binary.Size(v32))
-			//fmt.Printf("%3d \t[%d]\n", pc, v32) //XXX
+			//fmt.Printf("%3d \t[%d]\n", PC, v32) //XXX
 		default:
 			return n, fmt.Errorf("undefined operation error")
 		}
@@ -519,16 +523,16 @@ func (t FST) WriteTo(w io.Writer) (n int64, err error) {
 	return
 }
 
-// Read loads a program of finite state transducer.
+// Read loads a program of finite State transducer.
 func Read(r io.Reader) (t FST, e error) {
 	var (
-		code instruction
+		code Instruction
 		op   byte
 		ch   byte
 		v16  uint16
 		v32  int32
 		p    unsafe.Pointer
-		//pc   int //XXX
+		//PC   int //XXX
 	)
 
 	rd := bufio.NewReader(r)
@@ -537,21 +541,21 @@ func Read(r io.Reader) (t FST, e error) {
 	if e = binary.Read(rd, binary.LittleEndian, &dataLen); e != nil {
 		return
 	}
-	//fmt.Println("data len:", dataLen) //XXX
-	t.data = make([]int32, 0, dataLen)
+	//fmt.Println("Data len:", dataLen) //XXX
+	t.Data = make([]int32, 0, dataLen)
 	for i := 0; i < int(dataLen); i++ {
 		if e = binary.Read(rd, binary.LittleEndian, &v32); e != nil {
 			return
 		}
-		t.data = append(t.data, v32)
+		t.Data = append(t.Data, v32)
 	}
 
 	var progLen int64
 	if e = binary.Read(rd, binary.LittleEndian, &progLen); e != nil {
 		return
 	}
-	//fmt.Println("prog len:", progLen) //XXX
-	t.prog = make([]instruction, 0, progLen)
+	//fmt.Println("Program len:", progLen) //XXX
+	t.Program = make([]Instruction, 0, progLen)
 
 	for e == nil {
 		if op, e = rd.ReadByte(); e != nil {
@@ -565,9 +569,9 @@ func Read(r io.Reader) (t FST, e error) {
 			fallthrough
 		case opAcceptBreak:
 			code[0], code[1], code[2], code[3] = op, ch, 0, 0
-			t.prog = append(t.prog, code)
-			//fmt.Printf("%3d %v\t%X %d\n", pc, operation(op), ch, 0) //XXX
-			//pc++                                                    //XXX
+			t.Program = append(t.Program, code)
+			//fmt.Printf("%3d %v\t%X %d\n", PC, operation(op), ch, 0) //XXX
+			//PC++                                                    //XXX
 			if ch == 0 {
 				break
 			}
@@ -576,30 +580,30 @@ func Read(r io.Reader) (t FST, e error) {
 			}
 			p = unsafe.Pointer(&code[0])
 			(*(*int32)(p)) = int32(v32)
-			//fmt.Printf("%3d \t[%d]\n", pc, v32) //XXX
-			//pc++                                //XXX
-			t.prog = append(t.prog, code)
+			//fmt.Printf("%3d \t[%d]\n", PC, v32) //XXX
+			//PC++                                //XXX
+			t.Program = append(t.Program, code)
 
 			if e = binary.Read(rd, binary.LittleEndian, &v32); e != nil {
 				break
 			}
 			p = unsafe.Pointer(&code[0])
 			(*(*int32)(p)) = int32(v32)
-			//fmt.Printf("%3d \t[%d]\n", pc, v32) //XXX
-			//pc++                                //XXX
-			t.prog = append(t.prog, code)
+			//fmt.Printf("%3d \t[%d]\n", PC, v32) //XXX
+			//PC++                                //XXX
+			t.Program = append(t.Program, code)
 		case opMatch:
 			fallthrough
-		case opBreak:
+		case opMatchBreak:
 			code[0], code[1] = op, ch
 			if e = binary.Read(rd, binary.LittleEndian, &v16); e != nil {
 				break
 			}
 			p = unsafe.Pointer(&code[2])
 			(*(*uint16)(p)) = uint16(v16)
-			//fmt.Printf("%3d %v\t%X %d\n", pc, operation(op), ch, v16) //XXX
-			//pc++                                                      //XXX
-			t.prog = append(t.prog, code)
+			//fmt.Printf("%3d %v\t%X %d\n", PC, operation(op), ch, v16) //XXX
+			//PC++                                                      //XXX
+			t.Program = append(t.Program, code)
 
 			if v16 != 0 {
 				break
@@ -609,9 +613,9 @@ func Read(r io.Reader) (t FST, e error) {
 			}
 			p = unsafe.Pointer(&code[0])
 			(*(*int32)(p)) = int32(v32)
-			//fmt.Printf("%3d \t[%d]\n", pc, v32) //XXX
-			//pc++                                //XXX
-			t.prog = append(t.prog, code)
+			//fmt.Printf("%3d \t[%d]\n", PC, v32) //XXX
+			//PC++                                //XXX
+			t.Program = append(t.Program, code)
 		case opOutput:
 			fallthrough
 		case opOutputBreak:
@@ -621,17 +625,17 @@ func Read(r io.Reader) (t FST, e error) {
 			}
 			p = unsafe.Pointer(&code[2])
 			(*(*uint16)(p)) = uint16(v16)
-			//fmt.Printf("%3d %v\t%X %d\n", pc, operation(op), ch, v16) //XXX
-			//pc++                                                      //XXX
-			t.prog = append(t.prog, code)
+			//fmt.Printf("%3d %v\t%X %d\n", PC, operation(op), ch, v16) //XXX
+			//PC++                                                      //XXX
+			t.Program = append(t.Program, code)
 			if e = binary.Read(rd, binary.LittleEndian, &v32); e != nil {
 				break
 			}
 			p = unsafe.Pointer(&code[0])
 			(*(*int32)(p)) = int32(v32)
-			//fmt.Printf("%3d \t[%d]\n", pc, v32) //XXX
-			//pc++                                //XXX
-			t.prog = append(t.prog, code)
+			//fmt.Printf("%3d \t[%d]\n", PC, v32) //XXX
+			//PC++                                //XXX
+			t.Program = append(t.Program, code)
 
 			if v16 != 0 {
 				break
@@ -641,9 +645,9 @@ func Read(r io.Reader) (t FST, e error) {
 			}
 			p = unsafe.Pointer(&code[0])
 			(*(*int32)(p)) = int32(v32)
-			//fmt.Printf("%3d \t[%d]\n", pc, v32) //XXX
-			//pc++                                //XXX
-			t.prog = append(t.prog, code)
+			//fmt.Printf("%3d \t[%d]\n", PC, v32) //XXX
+			//PC++                                //XXX
+			t.Program = append(t.Program, code)
 		default:
 			e = fmt.Errorf("invalid format: undefined operation error")
 			break

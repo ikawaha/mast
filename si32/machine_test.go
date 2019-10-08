@@ -1,12 +1,3 @@
-//  Copyright (c) 2015 ikawaha.
-//  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file
-//  except in compliance with the License. You may obtain a copy of the License at
-//    http://www.apache.org/licenses/LICENSE-2.0
-//  Unless required by applicable law or agreed to in writing, software distributed under the
-//  License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
-//  either express or implied. See the License for the specific language governing permissions
-//  and limitations under the License.
-
 package si32
 
 import (
@@ -26,15 +17,15 @@ func TestFSTRun01(t *testing.T) {
 		{"feb", 30},
 		{"dec", 31},
 	}
-	m := buildMAST(inp)
-	m.dot(os.Stdout)
+	m := BuildMAST(inp)
+	m.Dot(os.Stdout)
 
-	fst, _ := m.buildMachine()
+	fst, _ := m.BuildFST()
 	fmt.Println(fst)
 
-	config, ok := fst.run("feb")
+	config, ok := fst.Run("feb")
 	if !ok {
-		t.Errorf("input:feb, config:%v, accept:%v", config, ok)
+		t.Errorf("input:feb, config:%v, Accept:%v", config, ok)
 	}
 	fmt.Println(config)
 
@@ -47,15 +38,15 @@ func TestFSTRun02(t *testing.T) {
 		{"feb", 30},
 		{"dec", 31},
 	}
-	m := buildMAST(inp)
-	m.dot(os.Stdout)
+	m := BuildMAST(inp)
+	m.Dot(os.Stdout)
 
-	fst, _ := m.buildMachine()
+	fst, _ := m.BuildFST()
 	fmt.Println(fst)
 
-	config, ok := fst.run("dec")
+	config, ok := fst.Run("dec")
 	if !ok {
-		t.Errorf("input:feb, config:%v, accept:%v", config, ok)
+		t.Errorf("input:feb, config:%v, Accept:%v", config, ok)
 	}
 	fmt.Println(config)
 
@@ -66,16 +57,16 @@ func TestFSTRun03(t *testing.T) {
 		{"feb", 0},
 		{"february", 1},
 	}
-	m := buildMAST(inp)
-	m.dot(os.Stdout)
+	m := BuildMAST(inp)
+	m.Dot(os.Stdout)
 
-	fst, _ := m.buildMachine()
+	fst, _ := m.BuildFST()
 	fmt.Println(fst)
 
 	input := "february"
-	config, ok := fst.run(input)
+	config, ok := fst.Run(input)
 	if !ok {
-		t.Errorf("input:%v, config:%+v, accept:%v", input, config, ok)
+		t.Errorf("input:%v, config:%+v, Accept:%v", input, config, ok)
 	}
 	fmt.Println(config)
 }
@@ -332,28 +323,28 @@ func TestFSTSaveAndLoad01(t *testing.T) {
 		t.Errorf("unexpected error: %v\n", e)
 	}
 
-	if !reflect.DeepEqual(org.data, rst.data) {
-		t.Errorf("data:got %v, expected %v\n", rst.data, org.data)
+	if !reflect.DeepEqual(org.Data, rst.Data) {
+		t.Errorf("Data:got %v, expected %v\n", rst.Data, org.Data)
 	}
-	if !reflect.DeepEqual(org.prog, rst.prog) {
-		t.Errorf("prog:got %v, expected %v\n", rst.prog, org.prog)
+	if !reflect.DeepEqual(org.Program, rst.Program) {
+		t.Errorf("Program:got %v, expected %v\n", rst.Program, org.Program)
 	}
 }
 
 func TestFSTOperationString(t *testing.T) {
 
 	ps := []struct {
-		ope  operation
+		ope  Operation
 		name string
 	}{
-		{0, "OP0"},
-		{1, "ACC"},
-		{2, "ACB"},
-		{3, "MTC"},
-		{4, "BRK"},
-		{5, "OUT"},
-		{6, "OUB"},
-		{7, "OP7"},
+		{0, "UNDEF0"},
+		{1, "ACCEPT"},
+		{2, "ACCEPTB"},
+		{3, "MATCH"},
+		{4, "MATCHB"},
+		{5, "OUTPUT"},
+		{6, "OUTPUTB"},
+		{7, "UNDEF7"},
 		{8, "NA[8]"},
 		{9, "NA[9]"},
 	}
@@ -366,10 +357,12 @@ func TestFSTOperationString(t *testing.T) {
 }
 
 func TestFSTStress(t *testing.T) {
-	fp, err := os.Open("./_test/words.txt")
+	fp, err := os.Open("./testdata/words.txt")
 	if err != nil {
 		t.Fatalf("unexpected error, %v", err)
 	}
+	defer fp.Close()
+
 	var ps PairSlice
 	s := bufio.NewScanner(fp)
 	for i := 0; s.Scan(); i++ {
@@ -379,8 +372,8 @@ func TestFSTStress(t *testing.T) {
 	if e := s.Err(); e != nil {
 		t.Fatalf("unexpected error, %v", e)
 	}
-	m := buildMAST(ps)
-	fst, err := m.buildMachine()
+	m := BuildMAST(ps)
+	fst, err := m.BuildFST()
 	if err != nil {
 		t.Fatalf("unexpected error, %v", err)
 	}
