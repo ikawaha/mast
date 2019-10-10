@@ -18,11 +18,12 @@ func (ps PairSlice) Less(i, j int) bool {
 	return ps[i].In < ps[j].In
 }
 
-func (ps PairSlice) maxInputWordLen() (max int) {
+func (ps PairSlice) maxInputWordLen() int {
+	var max int
 	for _, pair := range ps {
-		if size := len(pair.In); size > max {
-			max = size
+		if v := len(pair.In); v > max {
+			max = v
 		}
 	}
-	return
+	return max
 }

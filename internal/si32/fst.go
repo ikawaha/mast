@@ -93,7 +93,7 @@ func (m MAST) BuildFST() (*FST, error) {
 		data  []int32
 		edges []byte
 	)
-	addrMap := make(map[int]int)
+	addrMap := map[int]int{}
 	for _, s := range m.States {
 		edges = edges[:0]
 		for ch := range s.Trans {
@@ -109,7 +109,6 @@ func (m MAST) BuildFST() (*FST, error) {
 			if !ok && !next.IsFinal {
 				return nil, fmt.Errorf("next addr is undefined: State(%v), input(%X)", s.ID, ch)
 			}
-			jump := len(prog) - addr + 1
 
 			var op Operation
 			out, ok := s.Output[ch]
@@ -119,14 +118,13 @@ func (m MAST) BuildFST() (*FST, error) {
 				} else {
 					op = Match
 				}
+			} else if i == 0 {
+				op = OutputBreak
 			} else {
-				if i == 0 {
-					op = OutputBreak
-				} else {
-					op = Output
-				}
+				op = Output
 			}
 
+			jump := len(prog) - addr + 1
 			if jump > maxUint16 {
 				prog = append(prog, Instruction(jump))
 				jump = 0

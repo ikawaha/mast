@@ -2,7 +2,7 @@ package si32
 
 import "fmt"
 
-type int32Set map[int32]bool
+type int32Set map[int32]struct{}
 
 // State represents a state of automata.
 type State struct {
@@ -30,16 +30,16 @@ func (s *State) HasTail() bool {
 
 // AddTail adds an item to the tail set.
 func (s *State) AddTail(t int32) {
-	s.Tail[t] = true
+	s.Tail[t] = struct{}{}
 }
 
 // Tails returns an array of items of the tail.
 func (s *State) Tails() []int32 {
-	t := make([]int32, 0, len(s.Tail))
+	ret := make([]int32, 0, len(s.Tail))
 	for item := range s.Tail {
-		t = append(t, item)
+		ret = append(ret, item)
 	}
-	return t
+	return ret
 }
 
 // RemoveOutput removes the output associated with the transition at the given character.
@@ -104,7 +104,7 @@ func (s *State) Equal(dst *State) bool {
 		}
 	}
 	for item := range s.Tail {
-		if !dst.Tail[item] {
+		if _, ok := dst.Tail[item]; !ok {
 			return false
 		}
 	}

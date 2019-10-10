@@ -41,15 +41,15 @@ func commonPrefix(a, b string) string {
 }
 
 // BuildMAST builds a minimal acyclic subsequential transducer from the given inputs.
-func BuildMAST(input PairSlice) (m MAST) {
-	if !sort.IsSorted(input) {
-		sort.Sort(input)
-	}
+func BuildMAST(input PairSlice) *MAST {
+	sort.Sort(input)
 
-	const initialMASTSize = 1024
+	const initialMASTSize = 1024 // FIXME
 	dic := make(map[int64][]*State)
-	m.States = make([]*State, 0, initialMASTSize)
-	m.FinalStates = make([]*State, 0, initialMASTSize)
+	ret := MAST{
+		States:      make([]*State, 0, initialMASTSize),
+		FinalStates: make([]*State, 0, initialMASTSize),
+	}
 
 	buf := make([]*State, input.maxInputWordLen()+1)
 	for i := range buf {
@@ -73,7 +73,7 @@ func BuildMAST(input PairSlice) (m MAST) {
 			if s == nil {
 				s = &State{}
 				*s = *buf[i]
-				m.AddState(s)
+				ret.AddState(s)
 				dic[s.hcode] = append(dic[s.hcode], s)
 			}
 			buf[i].Clear()
@@ -123,15 +123,15 @@ func BuildMAST(input PairSlice) (m MAST) {
 			s = &State{}
 			*s = *buf[i]
 			buf[i].Clear()
-			m.AddState(s)
+			ret.AddState(s)
 			dic[s.hcode] = append(dic[s.hcode], s)
 		}
 		buf[i-1].SetTransition(prev[i-1], s)
 	}
-	m.StartingState = buf[0]
-	m.AddState(buf[0])
+	ret.StartingState = buf[0]
+	ret.AddState(buf[0])
 
-	return
+	return &ret
 }
 
 // Run rus the transducer in the given input.

@@ -30,7 +30,7 @@ func TestStateEq01(t *testing.T) {
 			false},
 		{pair{&State{Output: map[byte]int32{1: 555}}, &State{Output: map[byte]int32{2: 555}}},
 			false},
-		{pair{&State{Tail: map[int32]bool{555: true}}, &State{Tail: map[int32]bool{555: true}}}, true},
+		{pair{&State{Tail: map[int32]struct{}{555: struct{}{}}}, &State{Tail: map[int32]struct{}{555: struct{}{}}}}, true},
 	}
 	for _, cr := range crs {
 		if rst := cr.call.x.Equal(cr.call.y); rst != cr.resp {
@@ -98,7 +98,7 @@ func TestStateString01(t *testing.T) {
 		ID:      1,
 		Trans:   map[byte]*State{1: nil, 2: r},
 		Output:  map[byte]int32{3: 555, 4: 888},
-		Tail:    int32Set{1111: true},
+		Tail:    int32Set{1111: struct{}{}},
 		IsFinal: true,
 	}
 	fmt.Println(s.String())
