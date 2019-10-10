@@ -357,7 +357,7 @@ func TestFSTOperationString(t *testing.T) {
 }
 
 func TestFSTStress(t *testing.T) {
-	fp, err := os.Open("./testdata/words.txt")
+	fp, err := os.Open("../testdata/words.txt")
 	if err != nil {
 		t.Fatalf("unexpected error, %v", err)
 	}
