@@ -1,2 +1,2 @@
-// Package ss implements string to string transducers.
-package ss
+// Package string2string implements string to string transducers.
+package string2string

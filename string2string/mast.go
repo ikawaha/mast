@@ -1,4 +1,4 @@
-package ss
+package string2string
 
 import (
 	"bytes"

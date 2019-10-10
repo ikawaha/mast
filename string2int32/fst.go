@@ -1,4 +1,4 @@
-package si32
+package string2int32
 
 import (
 	"bufio"

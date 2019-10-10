@@ -1,4 +1,4 @@
-package si32
+package string2int32
 
 // Pair implements a pair of input and output.
 type Pair struct {

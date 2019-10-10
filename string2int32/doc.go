@@ -1,2 +1,2 @@
-// Package si32 implements string to int32 transducers.
-package si32
+// Package string2int32 implements string to int32 transducers.
+package string2int32

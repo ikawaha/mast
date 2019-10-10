@@ -1,4 +1,4 @@
-package ss
+package string2string
 
 // Pair implements a pair of input and output.
 type Pair struct {
