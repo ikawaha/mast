@@ -334,7 +334,7 @@ func TestFSTSaveAndLoad01(t *testing.T) {
 func TestFSTOperationString(t *testing.T) {
 
 	ps := []struct {
-		ope  Operation
+		op   Operation
 		name string
 	}{
 		{0, "UNDEF0"},
@@ -350,8 +350,8 @@ func TestFSTOperationString(t *testing.T) {
 	}
 
 	for _, p := range ps {
-		if p.ope.String() != p.name {
-			t.Errorf("got %v, expected %v", p.ope.String(), p.name)
+		if p.op.String() != p.name {
+			t.Errorf("got %v, expected %v", p.op.String(), p.name)
 		}
 	}
 }
