@@ -4,7 +4,7 @@ import "fmt"
 
 type int32Set map[int32]bool
 
-// State represents a stete of automata.
+// State represents a state of automata.
 type State struct {
 	ID      int
 	Trans   map[byte]*State
@@ -15,12 +15,12 @@ type State struct {
 }
 
 // NewState constructs a new state.
-func NewState() (n *State) {
-	n = new(State)
-	n.Trans = make(map[byte]*State)
-	n.Output = make(map[byte]int32)
-	n.Tail = make(int32Set)
-	return
+func NewState() *State {
+	return &State{
+		Trans:  map[byte]*State{},
+		Output: map[byte]int32{},
+		Tail:   int32Set{},
+	}
 }
 
 // HasTail returns true if the state has tail items.

@@ -23,7 +23,7 @@ func (m *MAST) AddState(n *State) {
 }
 
 // Build constructs an FST virtual machine from the given inputs.
-func Build(src PairSlice) (t FST, err error) {
+func Build(src PairSlice) (*FST, error) {
 	m := BuildMAST(src)
 	return m.BuildFST()
 }
@@ -135,20 +135,19 @@ func BuildMAST(input PairSlice) (m MAST) {
 }
 
 // Run rus the transducer in the given input.
-func (m *MAST) Run(input string) (out []int32, ok bool) {
+func (m *MAST) Run(input string) (out []int32, accept bool) {
 	s := m.StartingState
 	for i, size := 0, len(input); i < size; i++ {
 		if o, ok := s.Output[input[i]]; ok {
 			out = append(out, o)
 		}
-		if s, ok = s.Trans[input[i]]; !ok {
-			return
+		var ok bool
+		s, ok = s.Trans[input[i]]
+		if !ok {
+			return out, false
 		}
 	}
-	for _, t := range s.Tails() {
-		out = append(out, t)
-	}
-	return
+	return append(out, s.Tails()...), true
 }
 
 // Accept checks that the transducer accepts the given input.

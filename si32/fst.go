@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strings"
 )
 
 // Operation represents the instruction code.
@@ -86,11 +87,10 @@ func (p Program) Reverse() {
 }
 
 // BuildFST generates virtual machine code of an FST from a minimal acyclic subsequential transducer
-func (m MAST) BuildFST() (t FST, err error) {
+func (m MAST) BuildFST() (*FST, error) {
 	var (
 		prog  Program
 		data  []int32
-		code  Instruction // tmp Instruction
 		edges []byte
 	)
 	addrMap := make(map[int]int)
@@ -99,7 +99,7 @@ func (m MAST) BuildFST() (t FST, err error) {
 		for ch := range s.Trans {
 			edges = append(edges, ch)
 		}
-		if len(edges) > 0 && !sort.IsSorted(byteSlice(edges)) {
+		if len(edges) > 0 {
 			sort.Sort(byteSlice(edges))
 		}
 		for i, size := 0, len(edges); i < size; i++ {
@@ -107,8 +107,7 @@ func (m MAST) BuildFST() (t FST, err error) {
 			next := s.Trans[ch]
 			addr, ok := addrMap[next.ID]
 			if !ok && !next.IsFinal {
-				err = fmt.Errorf("next addr is undefined: State(%v), input(%X)", s.ID, ch)
-				return
+				return nil, fmt.Errorf("next addr is undefined: State(%v), input(%X)", s.ID, ch)
 			}
 			jump := len(prog) - addr + 1
 
@@ -129,46 +128,40 @@ func (m MAST) BuildFST() (t FST, err error) {
 			}
 
 			if jump > maxUint16 {
-				code = Instruction(jump)
-				prog = append(prog, code)
+				prog = append(prog, Instruction(jump))
 				jump = 0
 			}
 			if ok {
-				code = Instruction(out)
-				prog = append(prog, code)
+				prog = append(prog, Instruction(out))
 			}
-			code = Instruction((int(op) << 24) + (int(ch) << 16) + jump)
-			prog = append(prog, code)
+			prog = append(prog, Instruction((int(op)<<24)+(int(ch)<<16)+jump))
 		}
 		if s.IsFinal {
 			if len(s.Tail) > 0 {
-				code = Instruction(len(data))
-				prog = append(prog, code)
+				prog = append(prog, Instruction(len(data))) // from
 				tmp := make(int32Slice, 0, len(s.Tail))
 				for t := range s.Tail {
 					tmp = append(tmp, t)
 				}
 				sort.Sort(tmp)
 				data = append(data, tmp...)
-				code = Instruction(len(data))
-				prog = append(prog, code)
+				prog = append(prog, Instruction(len(data))) // to
 			}
+			var inst Instruction
 			if len(s.Trans) == 0 {
-				code = Instruction(int(AcceptBreak) << 24)
+				inst = Instruction(int(AcceptBreak) << 24)
 			} else {
-				code = Instruction(int(Accept) << 24)
+				inst = Instruction(int(Accept) << 24)
 			}
 			if len(s.Tail) > 0 {
-				code += Instruction(1 << 16)
+				inst += Instruction(1 << 16)
 			}
-			prog = append(prog, code)
+			prog = append(prog, inst)
 		}
 		addrMap[s.ID] = len(prog)
 	}
-
 	prog.Reverse()
-	t = FST{Program: prog, Data: data}
-	return
+	return &FST{Program: prog, Data: data}, nil
 }
 
 // String returns virtual machine code of the FST.
@@ -181,7 +174,7 @@ func (t FST) String() string {
 		v16  uint16
 		v32  int32
 	)
-	ret := ""
+	var b strings.Builder
 	for pc = 0; pc < len(t.Program); pc++ {
 		code = t.Program[pc]
 		op = Operation((code & 0xFF000000) >> 24)
@@ -191,85 +184,76 @@ func (t FST) String() string {
 		case Accept:
 			fallthrough
 		case AcceptBreak:
-			//fmt.Printf("%3d %v\t%X %d\n", PC, op, ch, v16) //XXX
-			ret += fmt.Sprintf("%3d %v\t%d %d\n", pc, op, ch, v16)
+			fmt.Fprintf(&b, "%3d %v\t%d %d\n", pc, op, ch, v16)
 			if ch == 0 {
 				break
 			}
 			pc++
 			code = t.Program[pc]
 			to := code
-			ret += fmt.Sprintf("%3d [%d]\n", pc, to)
+			fmt.Fprintf(&b, "%3d [%d]\n", pc, to)
 			pc++
 			code = t.Program[pc]
 			from := code
-			ret += fmt.Sprintf("%3d [%d] %v\n", pc, from, t.Data[from:to])
+			fmt.Fprintf(&b, "%3d [%d] %v\n", pc, from, t.Data[from:to])
 		case Match:
 			fallthrough
 		case MatchBreak:
-			//fmt.Printf("%3d %v\t%02X %d\n", PC, op, ch, v16) //XXX
-			ret += fmt.Sprintf("%3d %v\t%02X(%c) %d\n", pc, op, ch, ch, v16)
+			fmt.Fprintf(&b, "%3d %v\t%02X(%c) %d\n", pc, op, ch, ch, v16)
 			if v16 == 0 {
 				pc++
 				code = t.Program[pc]
 				v32 = int32(code)
-				//fmt.Printf("%3d [%d]\n", PC, v32) //XXX
-				ret += fmt.Sprintf("%3d jmp[%d]\n", pc, v32)
+				fmt.Fprintf(&b, "%3d jmp[%d]\n", pc, v32)
 			}
 		case Output:
 			fallthrough
 		case OutputBreak:
-			//fmt.Printf("%3d %v\t%02X %d\n", PC, op, ch, v16) //XXX
-			ret += fmt.Sprintf("%3d %v\t%02X(%c) %d\n", pc, op, ch, ch, v16)
+			fmt.Fprintf(&b, "%3d %v\t%02X(%c) %d\n", pc, op, ch, ch, v16)
 			if v16 == 0 {
 				pc++
 				code = t.Program[pc]
 				v32 = int32(code)
-				//fmt.Printf("%3d [%d]\n", PC, v32) //XXX
-				ret += fmt.Sprintf("%3d jmp[%d]\n", pc, v32)
+				fmt.Fprintf(&b, "%3d jmp[%d]\n", pc, v32)
 			}
 			pc++
 			code = t.Program[pc]
 			v32 = int32(code)
-			//fmt.Printf("%3d [%d]\n", PC, v32) //XXX
-			ret += fmt.Sprintf("%3d [%d]\n", pc, v32)
+			fmt.Fprintf(&b, "%3d [%d]\n", pc, v32)
 		default:
-			//fmt.Printf("%3d UNDEF %v\n", PC, code)
-			ret += fmt.Sprintf("%3d UNDEF %v\n", pc, code)
+			fmt.Fprintf(&b, "%3d UNDEF %v\n", pc, code)
 		}
 	}
-	return ret
+	return b.String()
 }
 
 // Run runs virtual machine code of the FST.
 func (t *FST) Run(input string) (snap []Configuration, accept bool) {
 	var (
-		pc  int       // program counter
-		op  Operation // operation
-		ch  byte      // char
-		v16 uint16    // 16bit register
-		v32 int32     // 32bit register
-		hd  int       // input head
-		out int32     // output
+		pc   int       // program counter
+		op   Operation // operation
+		ch   byte      // char
+		v16  uint16    // 16bit register
+		v32  int32     // 32bit register
+		head int       // input head
+		out  int32     // output
 
-		code Instruction // tmp instruction
+		inst Instruction // tmp instruction
 	)
-	for pc < len(t.Program) && hd <= len(input) {
-		code = t.Program[pc]
-		op = Operation((code & 0xFF000000) >> 24)
-		ch = byte((code & 0x00FF0000) >> 16)
-		v16 = uint16(code & 0x0000FFFF)
+	for pc < len(t.Program) && head <= len(input) {
+		inst = t.Program[pc]
+		op = Operation((inst & 0xFF000000) >> 24)
+		ch = byte((inst & 0x00FF0000) >> 16)
+		v16 = uint16(inst & 0x0000FFFF)
 		//fmt.Printf("PC:%v,op:%v,Head:%v,v16:%v,Outputs:%v\n", PC, op, Head, v16, Outputs) //XXX
 		switch op {
-		case Match:
-			fallthrough
-		case MatchBreak:
-			if hd == len(input) {
+		case Match, MatchBreak:
+			if head == len(input) {
 				goto L_END
 			}
-			if ch != input[hd] {
+			if ch != input[head] {
 				if op == MatchBreak {
-					return
+					return snap, false
 				}
 				if v16 == 0 {
 					pc++
@@ -281,22 +265,20 @@ func (t *FST) Run(input string) (snap []Configuration, accept bool) {
 				pc += int(v16)
 			} else {
 				pc++
-				code = t.Program[pc]
-				v32 = int32(code)
+				inst = t.Program[pc]
+				v32 = int32(inst)
 				//fmt.Printf("ex jump:%d\n", v32) //XXX
 				pc += int(v32)
 			}
-			hd++
+			head++
 			continue
-		case Output:
-			fallthrough
-		case OutputBreak:
-			if hd == len(input) {
+		case Output, OutputBreak:
+			if head == len(input) {
 				goto L_END
 			}
-			if ch != input[hd] {
+			if ch != input[head] {
 				if op == OutputBreak {
-					return
+					return snap, false
 				}
 				if v16 == 0 {
 					pc++
@@ -306,38 +288,36 @@ func (t *FST) Run(input string) (snap []Configuration, accept bool) {
 				continue
 			}
 			pc++
-			code = t.Program[pc]
-			out = int32(code)
+			inst = t.Program[pc]
+			out = int32(inst)
 			if v16 > 0 {
 				pc += int(v16)
 			} else {
 				pc++
-				code = t.Program[pc]
-				v32 = int32(code)
+				inst = t.Program[pc]
+				v32 = int32(inst)
 				//fmt.Printf("ex jump:%d\n", v32) //XXX
 				pc += int(v32)
 			}
-			hd++
+			head++
 			continue
-		case Accept:
-			fallthrough
-		case AcceptBreak:
-			c := Configuration{PC: pc, Head: hd}
+		case Accept, AcceptBreak:
+			c := Configuration{PC: pc, Head: head}
 			pc++
 			if ch == 0 {
 				c.Outputs = []int32{out}
 			} else {
-				code = t.Program[pc]
-				to := code
+				inst = t.Program[pc]
+				to := inst
 				pc++
-				code = t.Program[pc]
-				from := code
+				inst = t.Program[pc]
+				from := inst
 				c.Outputs = t.Data[from:to]
 				pc++
 			}
 			//fmt.Printf("conf: %+v\n", c) //XXX
 			snap = append(snap, c)
-			if hd == len(input) {
+			if head == len(input) {
 				goto L_END
 			}
 			if op == AcceptBreak {
@@ -346,22 +326,21 @@ func (t *FST) Run(input string) (snap []Configuration, accept bool) {
 			continue
 		default:
 			//fmt.Printf("unknown op:%v\n", op) //XXX
-			return
+			return snap, false
 		}
 	}
 L_END:
 	//fmt.Printf("[[L_END]]PC:%d, op:%s, ch:[%X]\n", PC, op, ch) //XXX
-	if hd != len(input) {
-		return
+	if head != len(input) {
+		return snap, false
 	}
 	if op != Accept && op != AcceptBreak {
 		//fmt.Printf("[[NOT ACCEPT]]PC:%d, op:%s, ch:[%X]\n", PC, op, ch) //XXX
-		return
+		return snap, false
 
 	}
-	accept = true
 	//fmt.Printf("[[ACCEPT]]PC:%d, op:%s, ch:[%X]\n", PC, op, ch) //XXX
-	return
+	return snap, true
 }
 
 // Search runs the FST for the given input and it returns outputs if accepted otherwise nil.
@@ -390,13 +369,13 @@ func (t FST) PrefixSearch(input string) (length int, output []int32) {
 func (t FST) CommonPrefixSearch(input string) (lens []int, outputs [][]int32) {
 	snap, _ := t.Run(input)
 	if len(snap) == 0 {
-		return
+		return lens, outputs
 	}
 	for _, c := range snap {
 		lens = append(lens, c.Head)
 		outputs = append(outputs, c.Outputs)
 	}
-	return
+	return lens, outputs
 
 }
 
