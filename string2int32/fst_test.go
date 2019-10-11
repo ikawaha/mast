@@ -11,283 +11,412 @@ import (
 )
 
 func TestFSTRun01(t *testing.T) {
-	inp := PairSlice{
-		{"feb", 28},
-		{"feb", 29},
-		{"feb", 30},
-		{"dec", 31},
+	input := PairSlice{
+		{In: "feb", Out: 28},
+		{In: "feb", Out: 29},
+		{In: "feb", Out: 30},
+		{In: "dec", Out: 31},
 	}
-	m := BuildMAST(inp)
-	m.Dot(os.Stdout)
-
-	fst, _ := m.BuildFST()
-	fmt.Println(fst)
-
-	config, ok := fst.Run("feb")
-	if !ok {
-		t.Errorf("input:feb, config:%v, Accept:%v", config, ok)
+	m := BuildMAST(input)
+	fst, err := m.BuildFST()
+	if err != nil {
+		t.Fatalf("unexpected error, %v", err)
 	}
-	fmt.Println(config)
 
+	t.Run("graph output", func(t *testing.T) {
+		var b bytes.Buffer
+		m.Dot(&b)
+		expected := `digraph G {
+	rankdir=LR;
+	node [shape=circle]
+	0 [peripheries = 2];
+	3 [peripheries = 2];
+	1 -> 0 [label="63(c)/ε"];
+	2 -> 1 [label="65(e)/ε"];
+	4 -> 3 [label="62(b)/ε [28 29 30]"];
+	5 -> 4 [label="65(e)/ε"];
+	6 -> 2 [label="64(d)/31"];
+	6 -> 5 [label="66(f)/ε"];
+}
+`
+		if got := b.String(); got != expected {
+			t.Errorf("got %v, expected %v", got, expected)
+		}
+	})
+
+	t.Run("machine code", func(t *testing.T) {
+		expected := `  0 OUTPUT	64(d) 7
+  1 [31]
+  2 MATCHB	66(f) 1
+  3 MATCHB	65(e) 1
+  4 MATCHB	62(b) 1
+  5 ACCEPTB	1 0
+  6 [3]
+  7 [0] [28 29 30]
+  8 MATCHB	65(e) 1
+  9 MATCHB	63(c) 1
+ 10 ACCEPTB	0 0
+`
+		if got := fmt.Sprint(fst); got != expected {
+			t.Errorf("got %v, expected %v", got, expected)
+		}
+	})
+
+	t.Run("running", func(t *testing.T) {
+		expected := []Configuration{
+			{
+				PC:      5,
+				Head:    3,
+				Outputs: []int32{28, 29, 30},
+			},
+		}
+		got, ok := fst.Run("feb")
+		if !ok {
+			t.Errorf("input:feb, config:%v, Accept:%v", got, ok)
+		}
+		if !reflect.DeepEqual(got, expected) {
+			t.Errorf("got %v, expected %v", got, expected)
+		}
+	})
 }
 
 func TestFSTRun02(t *testing.T) {
 	inp := PairSlice{
-		{"feb", 28},
-		{"feb", 29},
-		{"feb", 30},
-		{"dec", 31},
+		{In: "feb", Out: 28},
+		{In: "feb", Out: 29},
+		{In: "feb", Out: 30},
+		{In: "dec", Out: 31},
 	}
 	m := BuildMAST(inp)
-	m.Dot(os.Stdout)
-
-	fst, _ := m.BuildFST()
-	fmt.Println(fst)
-
-	config, ok := fst.Run("dec")
-	if !ok {
-		t.Errorf("input:feb, config:%v, Accept:%v", config, ok)
+	fst, err := m.BuildFST()
+	if err != nil {
+		t.Fatalf("unexpected error, %v", err)
 	}
-	fmt.Println(config)
 
+	t.Run("graph output", func(t *testing.T) {
+		var b bytes.Buffer
+		m.Dot(&b)
+		expected := `digraph G {
+	rankdir=LR;
+	node [shape=circle]
+	0 [peripheries = 2];
+	3 [peripheries = 2];
+	1 -> 0 [label="63(c)/ε"];
+	2 -> 1 [label="65(e)/ε"];
+	4 -> 3 [label="62(b)/ε [28 29 30]"];
+	5 -> 4 [label="65(e)/ε"];
+	6 -> 2 [label="64(d)/31"];
+	6 -> 5 [label="66(f)/ε"];
+}
+`
+		if got := b.String(); got != expected {
+			fmt.Println(fst.Data)
+			t.Errorf("got %v, expected %v", got, expected)
+		}
+	})
+
+	t.Run("machine code", func(t *testing.T) {
+		expected := `  0 OUTPUT	64(d) 7
+  1 [31]
+  2 MATCHB	66(f) 1
+  3 MATCHB	65(e) 1
+  4 MATCHB	62(b) 1
+  5 ACCEPTB	1 0
+  6 [3]
+  7 [0] [28 29 30]
+  8 MATCHB	65(e) 1
+  9 MATCHB	63(c) 1
+ 10 ACCEPTB	0 0
+`
+		if got := fmt.Sprint(fst); got != expected {
+			t.Errorf("got %v, expected %v", got, expected)
+		}
+	})
+
+	t.Run("running", func(t *testing.T) {
+		expected := []Configuration{
+			{
+				PC:      10,
+				Head:    3,
+				Outputs: []int32{31},
+			},
+		}
+		got, ok := fst.Run("dec")
+		if !ok {
+			t.Errorf("input:dec, config:%v, Accept:%v", got, ok)
+		}
+		if !reflect.DeepEqual(got, expected) {
+			t.Errorf("got %v, expected %v", got, expected)
+		}
+	})
 }
 
 func TestFSTRun03(t *testing.T) {
 	inp := PairSlice{
-		{"feb", 0},
-		{"february", 1},
+		{In: "feb", Out: 0},
+		{In: "february", Out: 1},
 	}
 	m := BuildMAST(inp)
-	m.Dot(os.Stdout)
-
-	fst, _ := m.BuildFST()
-	fmt.Println(fst)
-
-	input := "february"
-	config, ok := fst.Run(input)
-	if !ok {
-		t.Errorf("input:%v, config:%+v, Accept:%v", input, config, ok)
+	fst, err := m.BuildFST()
+	if err != nil {
+		t.Fatalf("unexpected error, %v", err)
 	}
-	fmt.Println(config)
+
+	t.Run("graph output", func(t *testing.T) {
+		var b bytes.Buffer
+		m.Dot(&b)
+		expected := `digraph G {
+	rankdir=LR;
+	node [shape=circle]
+	0 [peripheries = 2];
+	5 [peripheries = 2];
+	1 -> 0 [label="79(y)/ε"];
+	2 -> 1 [label="72(r)/ε"];
+	3 -> 2 [label="61(a)/ε"];
+	4 -> 3 [label="75(u)/ε"];
+	5 -> 4 [label="72(r)/1"];
+	6 -> 5 [label="62(b)/ε"];
+	7 -> 6 [label="65(e)/ε"];
+	8 -> 7 [label="66(f)/ε"];
+}
+`
+		if got := b.String(); got != expected {
+			t.Errorf("got %v, expected %v", got, expected)
+		}
+	})
+
+	t.Run("machine code", func(t *testing.T) {
+		expected := `  0 MATCHB	66(f) 1
+  1 MATCHB	65(e) 1
+  2 MATCHB	62(b) 1
+  3 ACCEPT	0 0
+  4 OUTPUTB	72(r) 1
+  5 [1]
+  6 MATCHB	75(u) 1
+  7 MATCHB	61(a) 1
+  8 MATCHB	72(r) 1
+  9 MATCHB	79(y) 1
+ 10 ACCEPTB	0 0
+`
+		if got := fmt.Sprint(fst); got != expected {
+			t.Errorf("got %v, expected %v", got, expected)
+		}
+	})
+
+	t.Run("running", func(t *testing.T) {
+		expected := []Configuration{
+			{
+				PC:      3,
+				Head:    3,
+				Outputs: []int32{0},
+			},
+			{
+				PC:      10,
+				Head:    8,
+				Outputs: []int32{1},
+			},
+		}
+		got, ok := fst.Run("february")
+		if !ok {
+			t.Errorf("input:dec, config:%v, Accept:%v", got, ok)
+		}
+		if !reflect.DeepEqual(got, expected) {
+			t.Errorf("got %v, expected %v", got, expected)
+		}
+	})
 }
 
 func TestFSTSearch01(t *testing.T) {
-	inp := PairSlice{
-		{"1a22xss", 111},
-		{"1b22yss", 222},
+	input := PairSlice{
+		{In: "1a22xss", Out: 111},
+		{In: "1a22", Out: 111},
+		{In: "1b22yss", Out: 222},
 	}
-	vm, e := Build(inp)
-	if e != nil {
-		t.Errorf("unexpected error: %v\n", e)
+	m := BuildMAST(input)
+	fst, err := m.BuildFST()
+	if err != nil {
+		t.Errorf("unexpected error: %v\n", err)
 	}
-	fmt.Println(vm)
-	for _, p := range inp {
-		outs := vm.Search(p.In)
+	for _, p := range input {
+		outs := fst.Search(p.In)
 		if !reflect.DeepEqual(outs, []int32{p.Out}) {
-			t.Errorf("input: %v, got %v, expected %v\n", p.In, outs, []int32{p.Out})
+			t.Errorf("input %v, got %v, expected %v\n", p.In, outs, []int32{p.Out})
 		}
 	}
 }
 
 func TestFSTSearch02(t *testing.T) {
-	inp := PairSlice{
-		{"1a22", 111},
-		{"1a22xss", 222},
-		{"1a22yss", 333},
+	input := PairSlice{
+		{In: "hell", Out: 666},
+		{In: "hello", Out: 111},
+		{In: "goodbye", Out: 222},
+		{In: "goodbye", Out: 333},
 	}
-	vm, e := Build(inp)
-	if e != nil {
-		t.Errorf("unexpected error: %v\n", e)
+	m := BuildMAST(input)
+	fst, err := m.BuildFST()
+	if err != nil {
+		t.Errorf("unexpected error: %v\n", err)
 	}
-	fmt.Println(vm)
-	for _, p := range inp {
-		outs := vm.Search(p.In)
-		if !reflect.DeepEqual(outs, []int32{p.Out}) {
-			t.Errorf("input: %v, got %v, expected %v\n", p.In, outs, []int32{p.Out})
+
+	testdata := []struct {
+		input    string
+		expected []int32
+	}{
+		{input: "hell", expected: []int32{666}},
+		{input: "hello", expected: []int32{111}},
+		{input: "goodbye", expected: []int32{222, 333}},
+	}
+	for _, d := range testdata {
+		outs := fst.Search(d.input)
+		if !reflect.DeepEqual(outs, d.expected) {
+			t.Errorf("input %v, got %v, expected %v\n", d.input, outs, d.expected)
 		}
 	}
 }
 
 func TestFSTSearch03(t *testing.T) {
-	inp := PairSlice{
-		{"1a22", 111},
-		{"1a22xss", 222},
-		{"1a22xss", 333},
+	input := PairSlice{
+		{In: "hell", Out: 0},
+		{In: "hello", Out: 0},
+		{In: "goodbye", Out: 0},
+		{In: "goodbye", Out: 0},
 	}
-	vm, e := Build(inp)
-	if e != nil {
-		t.Errorf("unexpected error: %v\n", e)
+	m := BuildMAST(input)
+	fst, err := m.BuildFST()
+	if err != nil {
+		t.Errorf("unexpected error: %v\n", err)
 	}
-	fmt.Println(vm)
 
-	in := "1a22"
-	exp := []int32{111}
-	outs := vm.Search(in)
-	if !reflect.DeepEqual(outs, []int32{111}) {
-		t.Errorf("input: %v, got %v, expected %v\n", in, outs, exp)
+	testdata := []struct {
+		input    string
+		expected []int32
+	}{
+		{input: "hell", expected: []int32{0}},
+		{input: "hello", expected: []int32{0}},
+		{input: "goodbye", expected: []int32{0}},
 	}
-}
-
-func TestFSTSearch04(t *testing.T) {
-	inp := PairSlice{
-		{"1a22", 111},
-		{"1a22xss", 222},
-		{"1a22xss", 333},
-	}
-	vm, e := Build(inp)
-	if e != nil {
-		t.Errorf("unexpected error: %v\n", e)
-	}
-	fmt.Println(vm)
-
-	in := "1a22xss"
-	exp := []int32{222, 333}
-	outs := vm.Search(in)
-	sort.Sort(int32Slice(outs))
-	if !reflect.DeepEqual(outs, exp) {
-		t.Errorf("input: %v, got %v, expected %v\n", in, outs, exp)
-	}
-}
-
-func TestFSTSearch05(t *testing.T) {
-	inp := PairSlice{
-		{"1a22", 0},
-		{"1a22xss", 0},
-		{"1a22xss", 0},
-	}
-	vm, e := Build(inp)
-	if e != nil {
-		t.Errorf("unexpected error: %v\n", e)
-	}
-	fmt.Println(vm)
-
-	in := "1a22xss"
-	exp := []int32{0}
-	outs := vm.Search(in)
-	if !reflect.DeepEqual(outs, exp) {
-		t.Errorf("input: %v, got %v, expected %v\n", in, outs, exp)
+	for _, d := range testdata {
+		outs := fst.Search(d.input)
+		if !reflect.DeepEqual(outs, d.expected) {
+			t.Errorf("input %v, got %v, expected %v\n", d.input, outs, d.expected)
+		}
 	}
 }
 
 func TestFSTSearch06(t *testing.T) {
-	inp := PairSlice{
-		{"こんにちは", 111},
-		{"世界", 222},
-		{"すもももももも", 333},
-		{"すもも", 333},
-		{"すもも", 444},
+	input := PairSlice{
+		{In: "こんにちは", Out: 111},
+		{In: "世界", Out: 222},
+		{In: "すもももももも", Out: 333},
+		{In: "すもも", Out: 333},
+		{In: "すもも", Out: 444},
 	}
-	vm, e := Build(inp)
-	if e != nil {
-		t.Errorf("unexpected error: %v\n", e)
+	m := BuildMAST(input)
+	fst, err := m.BuildFST()
+	if err != nil {
+		t.Errorf("unexpected error: %v\n", err)
 	}
-	fmt.Println(vm)
-
-	cr := []struct {
-		in  string
-		out []int32
+	testdata := []struct {
+		input    string
+		expected []int32
 	}{
-		{"すもも", []int32{333, 444}},
-		{"こんにちわ", nil},
-		{"こんにちは", []int32{111}},
-		{"世界", []int32{222}},
-		{"すもももももも", []int32{333}},
-		{"すももももももも", nil},
-		{"すも", nil},
-		{"すもう", nil},
+		{input: "すもも", expected: []int32{333, 444}},
+		{input: "こんにちわ"},
+		{input: "こんにちは", expected: []int32{111}},
+		{input: "世界", expected: []int32{222}},
+		{input: "すもももももも", expected: []int32{333}},
+		{input: "すももももももも", expected: nil},
+		{input: "すも", expected: nil},
+		{input: "すもう", expected: nil},
 	}
 
-	for _, pair := range cr {
-		outs := vm.Search(pair.in)
-		sort.Sort(int32Slice(outs))
-		sort.Sort(int32Slice(pair.out))
-		if !reflect.DeepEqual(outs, pair.out) {
-			t.Errorf("input:%v, got %v, expected %v\n", pair.in, outs, pair.out)
+	for _, d := range testdata {
+		outs := fst.Search(d.input)
+		if !reflect.DeepEqual(outs, d.expected) {
+			t.Errorf("input:%v, got %v, expected %v\n", d.input, outs, d.expected)
 		}
 	}
 }
 
 func TestFSTPrefixSearch01(t *testing.T) {
-	inp := PairSlice{
-		{"こんにちは", 111},
-		{"世界", 222},
-		{"すもももももも", 333},
-		{"すもも", 333},
-		{"すもも", 444},
+	input := PairSlice{
+		{In: "こんにちは", Out: 111},
+		{In: "世界", Out: 222},
+		{In: "すもももももも", Out: 333},
+		{In: "すもも", Out: 333},
+		{In: "すもも", Out: 444},
 	}
-	vm, e := Build(inp)
-	if e != nil {
-		t.Errorf("unexpected error: %v\n", e)
+	m := BuildMAST(input)
+	fst, err := m.BuildFST()
+	if err != nil {
+		t.Errorf("unexpected error: %v\n", err)
 	}
-	fmt.Println(vm)
 
-	crs := []struct {
-		in  string
-		pos int
-		out []int32
+	testdata := []struct {
+		input   string
+		pos     int
+		outputs []int32
 	}{
-		{"すもも", 9, []int32{333, 444}},
-		{"こんにちわ", -1, nil},
-		{"こんにちは", 15, []int32{111}},
-		{"世界", 6, []int32{222}},
-		{"すもももももも", 21, []int32{333}},
-		{"すもももももももものうち", 21, []int32{333}},
-		{"すも", -1, nil},
-		{"すもう", -1, nil},
+		{input: "すもも", pos: 9, outputs: []int32{333, 444}},
+		{input: "こんにちわ", pos: -1},
+		{input: "こんにちは", pos: 15, outputs: []int32{111}},
+		{input: "世界", pos: 6, outputs: []int32{222}},
+		{input: "すもももももも", pos: 21, outputs: []int32{333}},
+		{input: "すもももももももものうち", pos: 21, outputs: []int32{333}},
+		{input: "すも", pos: -1},
+		{input: "すもう", pos: -1},
 	}
 
-	for _, cr := range crs {
-		pos, outs := vm.PrefixSearch(cr.in)
-		sort.Sort(int32Slice(outs))
-		sort.Sort(int32Slice(cr.out))
-		if !reflect.DeepEqual(outs, cr.out) {
-			t.Errorf("input:%v, got %v, expected %v\n", cr.in, outs, cr.out)
+	for _, d := range testdata {
+		pos, outs := fst.PrefixSearch(d.input)
+		if !reflect.DeepEqual(outs, d.outputs) {
+			t.Errorf("input:%v, got %v, expected %v\n", d.input, outs, d.outputs)
 		}
-		if pos != cr.pos {
-			t.Errorf("input:%v, got %v, expected %v\n", cr.in, pos, cr.pos)
+		if pos != d.pos {
+			t.Errorf("input:%v, got %v, expected %v\n", d.input, pos, d.pos)
 		}
 	}
 }
 
 func TestFSTCommonPrefixSearch01(t *testing.T) {
-	inp := PairSlice{
+	input := PairSlice{
 		{"こんにちは", 111},
 		{"世界", 222},
 		{"すもももももも", 333},
 		{"すもも", 333},
 		{"すもも", 444},
 	}
-	vm, e := Build(inp)
-	if e != nil {
-		t.Errorf("unexpected error: %v\n", e)
+	m := BuildMAST(input)
+	fst, err := m.BuildFST()
+	if err != nil {
+		t.Errorf("unexpected error: %v\n", err)
 	}
-	fmt.Println(vm)
 
-	crs := []struct {
-		in   string
-		lens []int
-		outs [][]int32
+	testdata := []struct {
+		input   string
+		lens    []int
+		outputs [][]int32
 	}{
-		{"すもも", []int{9}, [][]int32{{333, 444}}},
-		{"こんにちわ", nil, nil},
-		{"こんにちは", []int{15}, [][]int32{{111}}},
-		{"世界", []int{6}, [][]int32{{222}}},
-		{"すもももももも", []int{9, 21}, [][]int32{{333, 444}, {333}}},
-		{"すもももももももものうち", []int{9, 21}, [][]int32{{333, 444}, {333}}},
-		{"すも", nil, nil},
-		{"すもう", nil, nil},
+		{input: "すもも", lens: []int{9}, outputs: [][]int32{{333, 444}}},
+		{input: "こんにちわ"},
+		{input: "こんにちは", lens: []int{15}, outputs: [][]int32{{111}}},
+		{input: "世界", lens: []int{6}, outputs: [][]int32{{222}}},
+		{input: "すもももももも", lens: []int{9, 21}, outputs: [][]int32{{333, 444}, {333}}},
+		{input: "すもももももももものうち", lens: []int{9, 21}, outputs: [][]int32{{333, 444}, {333}}},
+		{input: "すも", lens: nil, outputs: nil},
+		{input: "すもう", lens: nil, outputs: nil},
 	}
 
-	for _, cr := range crs {
-		lens, outs := vm.CommonPrefixSearch(cr.in)
-		if !reflect.DeepEqual(lens, cr.lens) {
-			t.Errorf("input:%v, got %v %v, expected %v %v\n", cr.in, lens, outs, cr.lens, cr.outs)
+	for _, d := range testdata {
+		lens, outs := fst.CommonPrefixSearch(d.input)
+		if !reflect.DeepEqual(lens, d.lens) {
+			t.Errorf("input:%v, got %v %v, expected %v %v\n", d.input, lens, outs, d.lens, d.outputs)
 		}
 		for i := range lens {
 			sort.Sort(int32Slice(outs[i]))
-			sort.Sort(int32Slice(cr.outs[i]))
-			if !reflect.DeepEqual(outs[i], cr.outs[i]) {
-				t.Errorf("input:%v, got %v %v, expected %v %v\n", cr.in, lens, outs, cr.lens, cr.outs)
+			sort.Sort(int32Slice(d.outputs[i]))
+			if !reflect.DeepEqual(outs[i], d.outputs[i]) {
+				t.Errorf("input:%v, got %v %v, expected %v %v\n", d.input, lens, outs, d.lens, d.outputs)
 			}
 		}
 	}
@@ -304,7 +433,8 @@ func TestFSTSaveAndLoad01(t *testing.T) {
 		{"dec", 31},
 	}
 
-	org, e := Build(inp)
+	m := BuildMAST(inp)
+	org, e := m.BuildFST()
 	if e != nil {
 		t.Errorf("unexpected error: %v\n", e)
 	}
@@ -388,7 +518,7 @@ func TestFSTStress(t *testing.T) {
 			}
 			return false
 		}(ids, p.Out) {
-			t.Errorf("input:%v, got %v, but not in %v", p.In, ids, p.Out)
+			t.Errorf("input:%v, got %v, but not input %v", p.In, ids, p.Out)
 		}
 	}
 }

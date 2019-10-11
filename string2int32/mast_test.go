@@ -3,7 +3,6 @@ package string2int32
 import (
 	"os"
 	"reflect"
-	"sort"
 	"testing"
 )
 
@@ -22,16 +21,16 @@ func TestMASTBuildMAST01(t *testing.T) {
 }
 
 func TestMASTAccept01(t *testing.T) {
-	inp := PairSlice{
-		{"hello", 111},
-		{"hello", 222},
-		{"111", 111},
-		{"112", 112},
-		{"112", 122},
-		{"211", 345},
+	input := PairSlice{
+		{In: "hello", Out: 111},
+		{In: "hello", Out: 222},
+		{In: "111", Out: 111},
+		{In: "112", Out: 112},
+		{In: "112", Out: 122},
+		{In: "211", Out: 345},
 	}
-	m := BuildMAST(inp)
-	for _, pair := range inp {
+	m := BuildMAST(input)
+	for _, pair := range input {
 		if ok := m.Accept(pair.In); !ok {
 			t.Errorf("expected: Accept [%v]\n", pair.In)
 		}
@@ -42,16 +41,16 @@ func TestMASTAccept01(t *testing.T) {
 }
 
 func TestMASTRun01(t *testing.T) {
-	inp := PairSlice{
-		{"hello", 1111},
-		{"hell", 2222},
-		{"111", 111},
-		{"112", 112},
-		{"113", 122},
-		{"211", 111},
+	input := PairSlice{
+		{In: "hello", Out: 1111},
+		{In: "hell", Out: 2222},
+		{In: "111", Out: 111},
+		{In: "112", Out: 112},
+		{In: "113", Out: 122},
+		{In: "211", Out: 111},
 	}
-	m := BuildMAST(inp)
-	for _, pair := range inp {
+	m := BuildMAST(input)
+	for _, pair := range input {
 		out, ok := m.Run(pair.In)
 		if !ok {
 			t.Errorf("expected: Accept [%v]\n", pair.In)
@@ -70,8 +69,8 @@ func TestMASTRun01(t *testing.T) {
 
 func TestMASTRun02(t *testing.T) {
 	inp := PairSlice{
-		{"hello", 1111},
-		{"hello", 2222},
+		{In: "hello", Out: 1111},
+		{In: "hello", Out: 2222},
 	}
 	m := BuildMAST(inp)
 	for _, pair := range inp {
@@ -83,8 +82,6 @@ func TestMASTRun02(t *testing.T) {
 			t.Errorf("input: %v, output size: got %v, expected 2\n", pair.In, len(out))
 		}
 		expected := []int32{1111, 2222}
-		sort.Sort(int32Slice(out))
-		sort.Sort(int32Slice(expected))
 		if !reflect.DeepEqual(out, expected) {
 			t.Errorf("input: %v, output: got %v, expected %v\n", pair.In, out, expected)
 		}
@@ -95,28 +92,28 @@ func TestMASTRun02(t *testing.T) {
 }
 
 func TestMASTDot01(t *testing.T) {
-	inp := PairSlice{
-		{"apr", 30},
-		{"aug", 31},
-		{"dec", 31},
-		{"feb", 28},
-		{"feb", 29},
+	input := PairSlice{
+		{In: "apr", Out: 30},
+		{In: "aug", Out: 31},
+		{In: "dec", Out: 31},
+		{In: "feb", Out: 28},
+		{In: "feb", Out: 29},
 	}
-	m := BuildMAST(inp)
+	m := BuildMAST(input)
 	m.Dot(os.Stdout)
 }
 
 func TestMASTDot02(t *testing.T) {
-	inp := PairSlice{
-		{"apr", 30},
-		{"aug", 31},
-		{"dec", 31},
-		{"feb", 28},
-		{"feb", 29},
-		{"lucene", 1},
-		{"lucid", 2},
-		{"lucifer", 666},
+	input := PairSlice{
+		{In: "apr", Out: 30},
+		{In: "aug", Out: 31},
+		{In: "dec", Out: 31},
+		{In: "feb", Out: 28},
+		{In: "feb", Out: 29},
+		{In: "lucene", Out: 1},
+		{In: "lucid", Out: 2},
+		{In: "lucifer", Out: 666},
 	}
-	m := BuildMAST(inp)
+	m := BuildMAST(input)
 	m.Dot(os.Stdout)
 }

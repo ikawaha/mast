@@ -1,6 +1,7 @@
 package string2int32
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"sort"
@@ -22,12 +23,6 @@ func (m *MAST) AddState(n *State) {
 	}
 }
 
-// Build constructs an FST virtual machine from the given inputs.
-func Build(src PairSlice) (*FST, error) {
-	m := BuildMAST(src)
-	return m.BuildFST()
-}
-
 func commonPrefix(a, b string) string {
 	end := len(a)
 	if end > len(b) {
@@ -40,11 +35,12 @@ func commonPrefix(a, b string) string {
 	return a[0:i]
 }
 
+const initialMASTSize = 1024
+
 // BuildMAST builds a minimal acyclic subsequential transducer from the given inputs.
 func BuildMAST(input PairSlice) *MAST {
 	sort.Sort(input)
 
-	const initialMASTSize = 1024 // FIXME
 	dic := make(map[int64][]*State)
 	ret := MAST{
 		States:      make([]*State, 0, initialMASTSize),
@@ -138,7 +134,7 @@ func BuildMAST(input PairSlice) *MAST {
 	return &ret
 }
 
-// Run rus the transducer in the given input.
+// Run rus the transducer input the given input.
 func (m *MAST) Run(input string) (out []int32, accept bool) {
 	s := m.StartingState
 	for i, size := 0, len(input); i < size; i++ {
@@ -165,22 +161,29 @@ func (m *MAST) Accept(input string) (ok bool) {
 	return true
 }
 
-// Dot outputs the FST in graphviz format.
+// Dot outputs the FST input graphviz format.
 func (m *MAST) Dot(w io.Writer) {
-	fmt.Fprintln(w, "digraph G {")
-	fmt.Fprintln(w, "\trankdir=LR;")
-	fmt.Fprintln(w, "\tnode [shape=circle]")
+	bw := bufio.NewWriter(w)
+	defer bw.Flush()
+
+	bw.WriteString("digraph G {\n")
+	bw.WriteString("\trankdir=LR;\n")
+	bw.WriteString("\tnode [shape=circle]\n")
 	for _, s := range m.FinalStates {
-		fmt.Fprintf(w, "\t%d [peripheries = 2];\n", s.ID)
+		fmt.Fprintf(bw, "\t%d [peripheries = 2];\n", s.ID)
 	}
 	for _, from := range m.States {
 		for in, to := range from.Trans {
-			fmt.Fprintf(w, "\t%d -> %d [label=\"%02X/%v", from.ID, to.ID, in, from.Output[in])
-			if to.HasTail() {
-				fmt.Fprintf(w, " %v", to.Tails())
+			if out, ok := from.Output[in]; !ok {
+				fmt.Fprintf(bw, "\t%d -> %d [label=\"%02X(%c)/ε", from.ID, to.ID, in, in)
+			} else {
+				fmt.Fprintf(bw, "\t%d -> %d [label=\"%02X(%c)/%v", from.ID, to.ID, in, in, out)
 			}
-			fmt.Fprintln(w, "\"];")
+			if to.HasTail() {
+				fmt.Fprintf(bw, " %v", to.Tails())
+			}
+			bw.WriteString("\"];\n")
 		}
 	}
-	fmt.Fprintln(w, "}")
+	bw.WriteString("}\n")
 }

@@ -78,7 +78,7 @@ func (p int32Slice) Len() int           { return len(p) }
 func (p int32Slice) Less(i, j int) bool { return p[i] < p[j] }
 func (p int32Slice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
-// Reverse rearrange instructions in reverse order.
+// Reverse rearrange instructions input reverse order.
 func (p Program) Reverse() {
 	size := len(p)
 	for i := 0; i < size/2; i++ {
@@ -179,9 +179,7 @@ func (t FST) String() string {
 		ch = byte((code & 0x00FF0000) >> 16)
 		v16 = uint16(code & 0x0000FFFF)
 		switch Operation(op) {
-		case Accept:
-			fallthrough
-		case AcceptBreak:
+		case Accept, AcceptBreak:
 			fmt.Fprintf(&b, "%3d %v\t%d %d\n", pc, op, ch, v16)
 			if ch == 0 {
 				break
@@ -194,9 +192,7 @@ func (t FST) String() string {
 			code = t.Program[pc]
 			from := code
 			fmt.Fprintf(&b, "%3d [%d] %v\n", pc, from, t.Data[from:to])
-		case Match:
-			fallthrough
-		case MatchBreak:
+		case Match, MatchBreak:
 			fmt.Fprintf(&b, "%3d %v\t%02X(%c) %d\n", pc, op, ch, ch, v16)
 			if v16 == 0 {
 				pc++
@@ -204,9 +200,7 @@ func (t FST) String() string {
 				v32 = int32(code)
 				fmt.Fprintf(&b, "%3d jmp[%d]\n", pc, v32)
 			}
-		case Output:
-			fallthrough
-		case OutputBreak:
+		case Output, OutputBreak:
 			fmt.Fprintf(&b, "%3d %v\t%02X(%c) %d\n", pc, op, ch, ch, v16)
 			if v16 == 0 {
 				pc++
@@ -243,7 +237,6 @@ func (t *FST) Run(input string) (snap []Configuration, accept bool) {
 		op = Operation((inst & 0xFF000000) >> 24)
 		ch = byte((inst & 0x00FF0000) >> 16)
 		v16 = uint16(inst & 0x0000FFFF)
-		//fmt.Printf("PC:%v,op:%v,Head:%v,v16:%v,Outputs:%v\n", PC, op, Head, v16, Outputs) //XXX
 		switch op {
 		case Match, MatchBreak:
 			if head == len(input) {
@@ -265,7 +258,6 @@ func (t *FST) Run(input string) (snap []Configuration, accept bool) {
 				pc++
 				inst = t.Program[pc]
 				v32 = int32(inst)
-				//fmt.Printf("ex jump:%d\n", v32) //XXX
 				pc += int(v32)
 			}
 			head++
@@ -294,7 +286,6 @@ func (t *FST) Run(input string) (snap []Configuration, accept bool) {
 				pc++
 				inst = t.Program[pc]
 				v32 = int32(inst)
-				//fmt.Printf("ex jump:%d\n", v32) //XXX
 				pc += int(v32)
 			}
 			head++
@@ -328,17 +319,7 @@ func (t *FST) Run(input string) (snap []Configuration, accept bool) {
 		}
 	}
 L_END:
-	//fmt.Printf("[[L_END]]PC:%d, op:%s, ch:[%X]\n", PC, op, ch) //XXX
-	if head != len(input) {
-		return snap, false
-	}
-	if op != Accept && op != AcceptBreak {
-		//fmt.Printf("[[NOT ACCEPT]]PC:%d, op:%s, ch:[%X]\n", PC, op, ch) //XXX
-		return snap, false
-
-	}
-	//fmt.Printf("[[ACCEPT]]PC:%d, op:%s, ch:[%X]\n", PC, op, ch) //XXX
-	return snap, true
+	return snap, (head == len(input)) && (op == Accept || op == AcceptBreak)
 }
 
 // Search runs the FST for the given input and it returns outputs if accepted otherwise nil.
@@ -426,7 +407,6 @@ func Read(r io.Reader) (*FST, error) {
 	if err := binary.Read(rd, binary.LittleEndian, &progLen); err != nil {
 		return nil, err
 	}
-	//fmt.Println("Program len:", progLen) //XXX
 	program := make([]Instruction, 0, progLen)
 	for i := 0; i < int(progLen); i++ {
 		var v32 Instruction

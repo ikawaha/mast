@@ -1,8 +1,18 @@
 package string2int32
 
-import "fmt"
+import (
+	"fmt"
+	"sort"
+	"strings"
+)
 
 type int32Set map[int32]struct{}
+
+const (
+	// prime numbers for generating hash value
+	magic0 = 1001
+	magic1 = 8191
+)
 
 // State represents a state of automata.
 type State struct {
@@ -35,18 +45,18 @@ func (s *State) AddTail(t int32) {
 
 // Tails returns an array of items of the tail.
 func (s *State) Tails() []int32 {
-	ret := make([]int32, 0, len(s.Tail))
+	ret := make(int32Slice, 0, len(s.Tail))
 	for item := range s.Tail {
 		ret = append(ret, item)
 	}
+	sort.Sort(ret)
 	return ret
 }
 
 // RemoveOutput removes the output associated with the transition at the given character.
 func (s *State) RemoveOutput(ch byte) {
-	const magic = 8191
 	if out, ok := s.Output[ch]; ok && out != 0 {
-		s.hcode -= (int64(ch) + int64(out)) * magic
+		s.hcode -= (int64(ch) + int64(out)) * magic1
 	}
 	delete(s.Output, ch)
 }
@@ -54,17 +64,13 @@ func (s *State) RemoveOutput(ch byte) {
 // SetOutput sets the output associated with the transition at the given character.
 func (s *State) SetOutput(ch byte, out int32) {
 	s.Output[ch] = out
-
-	const magic = 8191
-	s.hcode += (int64(ch) + int64(out)) * magic
+	s.hcode += (int64(ch) + int64(out)) * magic1
 }
 
 // SetTransition sets the transition associated with the given character.
 func (s *State) SetTransition(ch byte, next *State) {
 	s.Trans[ch] = next
-
-	const magic = 1001
-	s.hcode += (int64(ch) + int64(next.ID)) * magic
+	s.hcode += (int64(ch) + int64(next.ID)) * magic0
 }
 
 // Clear clears the state.
@@ -113,16 +119,16 @@ func (s *State) Equal(dst *State) bool {
 
 // String returns the string representation of the state.
 func (s *State) String() string {
-	ret := ""
 	if s == nil {
 		return "<nil>"
 	}
-	ret += fmt.Sprintf("%d[%p]:", s.ID, s)
+	var ret strings.Builder
+	ret.WriteString(fmt.Sprintf("%d[%p]:", s.ID, s))
 	for ch := range s.Trans {
-		ret += fmt.Sprintf("%X02/%v -->%p, ", ch, s.Output[ch], s.Trans[ch])
+		ret.WriteString(fmt.Sprintf("%X02/%v -->%p, ", ch, s.Output[ch], s.Trans[ch]))
 	}
 	if s.IsFinal {
-		ret += fmt.Sprintf(" (tail:%v) ", s.Tails())
+		ret.WriteString(fmt.Sprintf(" (tail:%v) ", s.Tails()))
 	}
-	return ret
+	return ret.String()
 }
