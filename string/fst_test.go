@@ -11,6 +11,45 @@ import (
 	"testing"
 )
 
+func (t *FST) runTester(input string) (cs []Configuration, accept bool) {
+	t.Run(input, func(snapshot Configuration) {
+		cs = append(cs, snapshot)
+		accept = snapshot.Head == len(input)
+	})
+	return cs, accept
+}
+
+func (t FST) searchTester(input string) []string {
+	snap, acc := t.runTester(input)
+	if !acc || len(snap) == 0 {
+		return nil
+	}
+	c := snap[len(snap)-1]
+	return c.Outputs
+}
+
+func (t FST) prefixSearchTester(input string) (length int, output []string) {
+	snap, _ := t.runTester(input)
+	if len(snap) == 0 {
+		return -1, nil
+	}
+	c := snap[len(snap)-1]
+	return c.Head, c.Outputs
+}
+
+func (t FST) commonPrefixSearchTester(input string) (lens []int, outputs [][]string) {
+	snap, _ := t.runTester(input)
+	if len(snap) == 0 {
+		return lens, outputs
+	}
+	for _, c := range snap {
+		lens = append(lens, c.Head)
+		outputs = append(outputs, c.Outputs)
+	}
+	return lens, outputs
+
+}
+
 func TestFSTRun01(t *testing.T) {
 	input := PairSlice{
 		{In: "feb", Out: "28"},
@@ -50,7 +89,7 @@ func TestFSTRun01(t *testing.T) {
 				Outputs: []string{"28", "29", "30"},
 			},
 		}
-		got, ok := fst.Run("feb")
+		got, ok := fst.runTester("feb")
 		if !ok {
 			t.Errorf("input:feb, config:%v, Accept:%v", got, ok)
 		}
@@ -99,7 +138,7 @@ func TestFSTRun02(t *testing.T) {
 				Outputs: []string{"31"},
 			},
 		}
-		got, ok := fst.Run("dec")
+		got, ok := fst.runTester("dec")
 		if !ok {
 			t.Errorf("input:dec, config:%v, Accept:%v", got, ok)
 		}
@@ -154,7 +193,7 @@ func TestFSTRun03(t *testing.T) {
 				Outputs: []string{"hell world"},
 			},
 		}
-		got, ok := fst.Run("february")
+		got, ok := fst.runTester("february")
 		if !ok {
 			t.Errorf("input:dec, config:%v, Accept:%v", got, ok)
 		}
@@ -176,7 +215,7 @@ func TestFstSearch01(t *testing.T) {
 		t.Errorf("unexpected error: %v", err)
 	}
 	for _, p := range input {
-		outs := fst.Search(p.In)
+		outs := fst.searchTester(p.In)
 		if !reflect.DeepEqual(outs, []string{p.Out}) {
 			t.Errorf("input %v, got %v, expected %v", p.In, outs, []string{p.Out})
 		}
@@ -205,7 +244,7 @@ func TestFstVMSearch02(t *testing.T) {
 		{input: "goodbye", expected: []string{"222", "333"}},
 	}
 	for _, d := range testdata {
-		outs := fst.Search(d.input)
+		outs := fst.searchTester(d.input)
 		if !reflect.DeepEqual(outs, d.expected) {
 			t.Errorf("input %v, got %v, expected %v", d.input, outs, d.expected)
 		}
@@ -234,7 +273,7 @@ func TestFstSearch03(t *testing.T) {
 		{input: "goodbye", expected: []string{""}},
 	}
 	for _, d := range testdata {
-		outs := fst.Search(d.input)
+		outs := fst.searchTester(d.input)
 		if !reflect.DeepEqual(outs, d.expected) {
 			t.Errorf("input %v, got %v, expected %v", d.input, outs, d.expected)
 		}
@@ -255,7 +294,7 @@ func TestFstSearch04(t *testing.T) {
 
 	in := "1a22xss"
 	expected := []string{"goodby", "world"}
-	got := fst.Search(in)
+	got := fst.searchTester(in)
 	if !reflect.DeepEqual(got, expected) {
 		t.Errorf("input: %v, got %v, expected %v", in, got, expected)
 	}
@@ -275,7 +314,7 @@ func TestFstSearch05(t *testing.T) {
 
 	in := "1a22xss"
 	expected := []string{"good", "goodbye"}
-	got := fst.Search(in)
+	got := fst.searchTester(in)
 	if !reflect.DeepEqual(got, expected) {
 		t.Errorf("input: %v, got %v, expected %v", in, got, expected)
 	}
@@ -309,7 +348,7 @@ func TestFstSearch06(t *testing.T) {
 	}
 
 	for _, d := range testdata {
-		got := fst.Search(d.in)
+		got := fst.searchTester(d.in)
 		if !reflect.DeepEqual(got, d.expected) {
 			t.Errorf("input:%v, got %v, expected %v", d.in, got, d.expected)
 		}
@@ -346,7 +385,7 @@ func TestFstPrefixSearch01(t *testing.T) {
 	}
 
 	for _, d := range testdata {
-		pos, outs := fst.PrefixSearch(d.in)
+		pos, outs := fst.prefixSearchTester(d.in)
 		sort.Strings(outs)
 		sort.Strings(d.out)
 		if pos != d.pos || !reflect.DeepEqual(outs, d.out) {
@@ -385,7 +424,7 @@ func TestFstVMCommonPrefixSearch01(t *testing.T) {
 	}
 
 	for _, d := range testdata {
-		lens, outs := fst.CommonPrefixSearch(d.in)
+		lens, outs := fst.commonPrefixSearchTester(d.in)
 		if !reflect.DeepEqual(lens, d.lens) || len(outs) != len(d.outs) {
 			t.Errorf("input:%v, got lens:%v outs:%v, expected lens:%v outs:%v",
 				d.in, lens, outs, d.lens, d.outs)
@@ -480,7 +519,7 @@ func TestFSTStress(t *testing.T) {
 	}
 
 	for _, p := range ps {
-		ids := fst.Search(p.In)
+		ids := fst.searchTester(p.In)
 		if !func(s []string, x string) bool {
 			for i := range s {
 				if x == s[i] {

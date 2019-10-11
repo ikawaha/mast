@@ -224,8 +224,8 @@ func (t FST) String() string {
 	return b.String()
 }
 
-// Run runs virtual machine code of the FST.
-func (t *FST) Run(input string) (snap []Configuration, accept bool) {
+// Run runs virtual machine code of the FST and calls callback function in every accepting state.
+func (t *FST) Run(input string, callback func(snapshot Configuration)) {
 	var (
 		pc   int       // program counter
 		op   Operation // operation
@@ -245,11 +245,11 @@ func (t *FST) Run(input string) (snap []Configuration, accept bool) {
 		switch op {
 		case Match, MatchBreak:
 			if head == len(input) {
-				goto L_END
+				return
 			}
 			if ch != input[head] {
 				if op == MatchBreak {
-					return snap, false
+					return
 				}
 				if v16 == 0 {
 					pc++
@@ -269,11 +269,11 @@ func (t *FST) Run(input string) (snap []Configuration, accept bool) {
 			continue
 		case Output, OutputBreak:
 			if head == len(input) {
-				goto L_END
+				return
 			}
 			if ch != input[head] {
 				if op == OutputBreak {
-					return snap, false
+					return
 				}
 				if v16 == 0 {
 					pc++
@@ -309,58 +309,16 @@ func (t *FST) Run(input string) (snap []Configuration, accept bool) {
 				c.Outputs = t.Data[from:to]
 				pc++
 			}
-			//fmt.Printf("conf: %+v\n", c) //XXX
-			snap = append(snap, c)
-			if head == len(input) {
-				goto L_END
-			}
-			if op == AcceptBreak {
-				goto L_END
+			callback(c) // accept !!!!
+			if head == len(input) || op == AcceptBreak {
+				return
 			}
 			continue
 		default:
-			//fmt.Printf("unknown op:%v\n", op) //XXX
-			return snap, false
+			// fmt.Fprintf(os.Stderr, "unknown operation, %v", op)
+			return
 		}
 	}
-L_END:
-	return snap, (head == len(input)) && (op == Accept || op == AcceptBreak)
-}
-
-// Search runs the FST for the given input and it returns outputs if accepted otherwise nil.
-func (t FST) Search(input string) []int32 {
-	snap, acc := t.Run(input)
-	if !acc || len(snap) == 0 {
-		return nil
-	}
-	c := snap[len(snap)-1]
-	return c.Outputs
-}
-
-// PrefixSearch returns the longest common prefix keyword and its length.
-// If there is no common prefix keyword, it returns (-1, nil).
-func (t FST) PrefixSearch(input string) (length int, output []int32) {
-	snap, _ := t.Run(input)
-	if len(snap) == 0 {
-		return -1, nil
-	}
-	c := snap[len(snap)-1]
-	return c.Head, c.Outputs
-}
-
-// CommonPrefixSearch finds keywords sharing common prefix and it returns its lengths and outputs.
-// If there are no common prefix keywords, it returns (nil, nil).
-func (t FST) CommonPrefixSearch(input string) (lens []int, outputs [][]int32) {
-	snap, _ := t.Run(input)
-	if len(snap) == 0 {
-		return lens, outputs
-	}
-	for _, c := range snap {
-		lens = append(lens, c.Head)
-		outputs = append(outputs, c.Outputs)
-	}
-	return lens, outputs
-
 }
 
 // WriteTo saves program of the FST.
