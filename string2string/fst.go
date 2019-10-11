@@ -9,18 +9,6 @@ import (
 	"strings"
 )
 
-//    0   1   2   3  4   5   6   7
-// |---|---|---|---|---|---|---|---|
-// <----------><------------------>
-//      op             value
-const (
-	valueBits               = 5
-	valueMask          byte = 0xFF >> operationBits
-	operationBits           = 3
-	operationShiftSize      = 5
-	operationMask      byte = 0xFF - valueMask
-)
-
 // Operation represents the instruction code.
 type Operation byte
 
@@ -76,7 +64,10 @@ type Configuration struct {
 	Outputs []string // outputs
 }
 
-const maxUint16 = 1<<16 - 1
+const (
+	maxUint16 = 1<<16 - 1
+	maxUint32 = 1<<32 - 1
+)
 
 type byteSlice []byte
 
@@ -131,7 +122,9 @@ func (m MAST) BuildFST() (*FST, error) {
 			}
 
 			jump := len(prog) - addr + 1
-			if jump > maxUint16 {
+			if jump > maxUint32 {
+				panic("too long jump, " + fmt.Sprintf("%d", jump))
+			} else if jump > maxUint16 {
 				prog = append(prog, Instruction(jump))
 				jump = 0
 			}
@@ -185,7 +178,7 @@ func (t FST) String() string {
 		op = Operation((code & 0xFF000000) >> 24)
 		ch = byte((code & 0x00FF0000) >> 16)
 		v16 = uint16(code & 0x0000FFFF)
-		switch Operation(op) {
+		switch op {
 		case Accept, AcceptBreak:
 			fmt.Fprintf(&b, "%3d %v\t%d %d\n", pc, op, ch, v16)
 			if ch == 0 {
@@ -332,17 +325,7 @@ func (t *FST) Run(input string) (snap []Configuration, accept bool) {
 		}
 	}
 L_END:
-	//fmt.Printf("[[L_END]]PC:%d, op:%s, ch:[%X]\n", PC, op, ch) //XXX
-	if head != len(input) {
-		return snap, false
-	}
-	if op != Accept && op != AcceptBreak {
-		//fmt.Printf("[[NOT ACCEPT]]PC:%d, op:%s, ch:[%X]\n", PC, op, ch) //XXX
-		return snap, false
-
-	}
-	//fmt.Printf("[[ACCEPT]]PC:%d, op:%s, ch:[%X]\n", PC, op, ch) //XXX
-	return snap, true
+	return snap, (head == len(input)) && (op == Accept || op == AcceptBreak)
 }
 
 // Search runs the FST for the given input and it returns outputs if accepted otherwise nil.

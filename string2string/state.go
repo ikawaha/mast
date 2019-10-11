@@ -3,9 +3,17 @@ package string2string
 import (
 	"fmt"
 	"hash/fnv"
+	"sort"
+	"strings"
 )
 
 type stringSet map[string]struct{}
+
+const (
+	// prime numbers for generating hash value
+	magic0 = 1001
+	magic1 = 8191
+)
 
 // State represents a state of automata.
 type State struct {
@@ -43,17 +51,16 @@ func (s *State) Tails() []string {
 	for item := range s.Tail {
 		ret = append(ret, item)
 	}
+	sort.Strings(ret)
 	return ret
 }
 
 // RemoveOutput removes the output associated with the transition at the given character.
 func (s *State) RemoveOutput(ch byte) {
-	const magic = 8191
 	if out, ok := s.Output[ch]; ok {
-		const magic = 8191
 		h := fnv.New32a()
 		h.Write([]byte(out))
-		s.hcode -= (uint(ch) + uint(h.Sum32())) * magic
+		s.hcode -= (uint(ch) + uint(h.Sum32())) * magic1
 	}
 	delete(s.Output, ch)
 }
@@ -61,18 +68,19 @@ func (s *State) RemoveOutput(ch byte) {
 // SetOutput sets the output associated with the transition at the given character.
 func (s *State) SetOutput(ch byte, out string) {
 	s.Output[ch] = out
-	const magic = 8191
 	h := fnv.New32a()
 	h.Write([]byte(out))
-	s.hcode += (uint(ch) + uint(h.Sum32())) * magic
+	s.hcode += (uint(ch) + uint(h.Sum32())) * magic1
 }
 
 // SetTransition sets the transition associated with the given character.
 func (s *State) SetTransition(ch byte, next *State) {
+	nextID := 0
+	if next != nil {
+		nextID = next.ID
+	}
 	s.Trans[ch] = next
-
-	const magic = 1001
-	s.hcode += (uint(ch) + uint(next.ID)) * magic
+	s.hcode += (uint(ch) + uint(nextID)) * magic0
 }
 
 // SetInvTransition sets the inverted transitions from the destination state to the current state.
@@ -129,21 +137,21 @@ func (s *State) Equal(dst *State) bool {
 
 // String returns the string representation of the state.
 func (s *State) String() string {
-	ret := ""
 	if s == nil {
 		return "<nil>"
 	}
-	ret += fmt.Sprintf("%d[%p]:", s.ID, s)
+	var ret strings.Builder
+	ret.WriteString(fmt.Sprintf("%d[%p]:", s.ID, s))
 	for ch := range s.Trans {
-		ret += fmt.Sprintf("%X02/%v -->%p, ", ch, s.Output[ch], s.Trans[ch])
+		ret.WriteString(fmt.Sprintf("%X02/%v -->%p, ", ch, s.Output[ch], s.Trans[ch]))
 	}
 	if s.IsFinal {
-		ret += fmt.Sprintf(" (tail:%v) ", s.Tails())
+		ret.WriteString(fmt.Sprintf(" (tail:%v) ", s.Tails()))
 	}
-	ret += fmt.Sprint("<--(")
+	ret.WriteString("<--(")
 	for _, s := range s.Prev {
-		ret += fmt.Sprintf("%p, ", s)
+		ret.WriteString(fmt.Sprintf("%p, ", s))
 	}
-	ret += fmt.Sprint(")")
-	return ret
+	ret.WriteString(")")
+	return ret.String()
 }

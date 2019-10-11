@@ -24,12 +24,6 @@ func (m *MAST) AddState(n *State) {
 	}
 }
 
-// Build constructs an FST virtual machine from the given inputs.
-func Build(src PairSlice) (*FST, error) {
-	m := BuildMAST(src)
-	return m.BuildFST()
-}
-
 func commonPrefix(a, b string) string {
 	end := len(a)
 	if end > len(b) {

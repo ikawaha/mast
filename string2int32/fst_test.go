@@ -237,7 +237,7 @@ func TestFSTSearch03(t *testing.T) {
 	}
 }
 
-func TestFSTSearch06(t *testing.T) {
+func TestFSTSearch04(t *testing.T) {
 	input := PairSlice{
 		{In: "こんにちは", Out: 111},
 		{In: "世界", Out: 222},

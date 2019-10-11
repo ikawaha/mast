@@ -1,6 +1,7 @@
 package string2int32
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -18,7 +19,7 @@ func TestStateEq01(t *testing.T) {
 			expected bool
 		}{
 			{input: pair{x: s, y: s}, expected: true},
-			{input: pair{x: nil, y: nil}},
+			{input: pair{x: nil, y: nil}, expected: false},
 			{input: pair{x: nil, y: &State{}}},
 			{input: pair{x: &State{}, y: nil}},
 			{input: pair{&State{ID: 1}, &State{ID: 2}}, expected: true},
@@ -85,4 +86,14 @@ func TestStateString(t *testing.T) {
 	if got := s.String(); got != "<nil>" {
 		t.Errorf("got %v, expected %v", got, expected)
 	}
+	r := &State{}
+	s = &State{
+		ID:      1,
+		Trans:   map[byte]*State{1: nil, 2: r},
+		Output:  map[byte]int32{3: 123, 4: 456},
+		Tail:    int32Set{789: struct{}{}},
+		IsFinal: true,
+	}
+	fmt.Println(s.String())
+
 }

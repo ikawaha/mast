@@ -11,23 +11,26 @@ func TestEqual01(t *testing.T) {
 		y *State
 	}
 
-	s := &State{}
+	s := NewState()
+	ss := NewState()
+	ss.SetTransition('a', nil)
 
 	testdata := []struct {
 		input    pair
 		expected bool
 	}{
-		{pair{x: s, y: s}, true},
-		{pair{x: nil, y: nil}, false},
-		{pair{x: nil, y: &State{}}, false},
-		{pair{x: &State{}, y: nil}, false},
-		{pair{&State{ID: 1}, &State{ID: 2}}, true},
-		{pair{&State{IsFinal: true}, &State{IsFinal: false}}, false},
-		{pair{&State{Output: map[byte]string{1: "go"}}, &State{}}, false},
-		{pair{&State{Output: map[byte]string{1: "go"}}, &State{Output: map[byte]string{1: "go"}}}, true},
-		{pair{&State{Output: map[byte]string{1: "go"}}, &State{Output: map[byte]string{1: "c++"}}}, false},
-		{pair{&State{Output: map[byte]string{1: "go"}}, &State{Output: map[byte]string{2: "go"}}}, false},
-		{pair{&State{Tail: map[string]struct{}{"go": struct{}{}}}, &State{Tail: map[string]struct{}{"go": struct{}{}}}}, true},
+		{input: pair{x: s, y: ss}, expected: false},
+		{input: pair{x: s, y: s}, expected: true},
+		{input: pair{x: nil, y: nil}, expected: false},
+		{input: pair{x: nil, y: &State{}}},
+		{input: pair{x: &State{}, y: nil}},
+		{input: pair{&State{ID: 1}, &State{ID: 2}}, expected: true},
+		{input: pair{&State{IsFinal: true}, &State{IsFinal: false}}},
+		{input: pair{&State{Output: map[byte]string{1: "go"}}, &State{}}},
+		{input: pair{&State{Output: map[byte]string{1: "go"}}, &State{Output: map[byte]string{1: "go"}}}, expected: true},
+		{input: pair{&State{Output: map[byte]string{1: "go"}}, &State{Output: map[byte]string{1: "c++"}}}},
+		{input: pair{&State{Output: map[byte]string{1: "go"}}, &State{Output: map[byte]string{2: "go"}}}},
+		{input: pair{&State{Tail: map[string]struct{}{"go": struct{}{}}}, &State{Tail: map[string]struct{}{"go": struct{}{}}}}, expected: true},
 	}
 	for _, d := range testdata {
 		if got := d.input.x.Equal(d.input.y); got != d.expected {

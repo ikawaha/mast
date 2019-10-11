@@ -69,8 +69,12 @@ func (s *State) SetOutput(ch byte, out int32) {
 
 // SetTransition sets the transition associated with the given character.
 func (s *State) SetTransition(ch byte, next *State) {
+	nextID := 0
+	if next != nil {
+		nextID = next.ID
+	}
 	s.Trans[ch] = next
-	s.hcode += (int64(ch) + int64(next.ID)) * magic0
+	s.hcode += (int64(ch) + int64(nextID)) * magic0
 }
 
 // Clear clears the state.
