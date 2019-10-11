@@ -79,30 +79,34 @@ func BuildMAST(input PairSlice) *MAST {
 			buf[i].Clear()
 			buf[i-1].SetTransition(prev[i-1], s)
 		}
-		for i, size := prefixLen+1, len(in); i <= size; i++ {
+		for i := prefixLen + 1; i <= len(in); i++ {
 			buf[i-1].SetTransition(in[i-1], buf[i])
 		}
 		if in != prev {
 			buf[len(in)].IsFinal = true
 		}
+		var outSuffix bool
 		for j := 1; j < prefixLen+1; j++ {
-			outSuff, ok := buf[j-1].Output[in[j-1]]
-			if ok {
-				if outSuff == out {
-					out = 0
-					break
-				}
-				buf[j-1].RemoveOutput(in[j-1]) // clear the prev edge
-				for ch := range buf[j].Trans {
-					buf[j].SetOutput(ch, outSuff)
-				}
-				if buf[j].IsFinal && outSuff != 0 {
-					buf[j].AddTail(outSuff)
-				}
+			v, ok := buf[j-1].Output[in[j-1]]
+			if !ok {
+				continue
+			}
+			if v == out {
+				outSuffix = true
+				break
+			}
+			buf[j-1].RemoveOutput(in[j-1]) // clear the prev edge
+			for ch := range buf[j].Trans {
+				buf[j].SetOutput(ch, v)
+			}
+			if buf[j].IsFinal && v != 0 {
+				buf[j].AddTail(v)
 			}
 		}
 		if in != prev {
-			buf[prefixLen].SetOutput(in[prefixLen], out)
+			if !outSuffix {
+				buf[prefixLen].SetOutput(in[prefixLen], out)
+			}
 		} else if fZero || out != 0 {
 			buf[len(in)].AddTail(out)
 		}
