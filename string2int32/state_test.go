@@ -1,7 +1,6 @@
 package string2int32
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -13,31 +12,30 @@ func TestStateEq01(t *testing.T) {
 
 	s := &State{}
 
-	crs := []struct {
-		call pair
-		resp bool
-	}{
-		{pair{x: s, y: s}, true},
-		{pair{x: nil, y: nil}, false},
-		{pair{x: nil, y: &State{}}, false},
-		{pair{x: &State{}, y: nil}, false},
-		{pair{&State{ID: 1}, &State{ID: 2}}, true},
-		{pair{&State{IsFinal: true}, &State{IsFinal: false}}, false},
-		{pair{&State{Output: map[byte]int32{1: 555}}, &State{}}, false},
-		{pair{&State{Output: map[byte]int32{1: 555}}, &State{Output: map[byte]int32{1: 555}}},
-			true},
-		{pair{&State{Output: map[byte]int32{1: 555}}, &State{Output: map[byte]int32{1: 444}}},
-			false},
-		{pair{&State{Output: map[byte]int32{1: 555}}, &State{Output: map[byte]int32{2: 555}}},
-			false},
-		{pair{&State{Tail: map[int32]struct{}{555: struct{}{}}}, &State{Tail: map[int32]struct{}{555: struct{}{}}}}, true},
-	}
-	for _, cr := range crs {
-		if rst := cr.call.x.Equal(cr.call.y); rst != cr.resp {
-			t.Errorf("got %v, expected %v, %v\n", rst, cr.resp, cr)
+	var (
+		testdata = []struct {
+			input    pair
+			expected bool
+		}{
+			{input: pair{x: s, y: s}, expected: true},
+			{input: pair{x: nil, y: nil}},
+			{input: pair{x: nil, y: &State{}}},
+			{input: pair{x: &State{}, y: nil}},
+			{input: pair{&State{ID: 1}, &State{ID: 2}}, expected: true},
+			{input: pair{&State{IsFinal: true}, &State{IsFinal: false}}},
+			{input: pair{&State{Output: map[byte]int32{1: 555}}, &State{}}},
+			{input: pair{&State{Output: map[byte]int32{1: 555}}, &State{Output: map[byte]int32{1: 555}}}, expected: true},
+			{input: pair{&State{Output: map[byte]int32{1: 555}}, &State{Output: map[byte]int32{1: 444}}}},
+			{input: pair{&State{Output: map[byte]int32{1: 555}}, &State{Output: map[byte]int32{2: 555}}}},
+			{input: pair{&State{Tail: map[int32]struct{}{555: struct{}{}}}, &State{Tail: map[int32]struct{}{555: struct{}{}}}}, expected: true},
 		}
-		if rst := cr.call.y.Equal(cr.call.x); rst != cr.resp {
-			t.Errorf("got %v, expected %v, %v\n", rst, cr.resp, cr)
+	)
+	for _, d := range testdata {
+		if got := d.input.x.Equal(d.input.y); got != d.expected {
+			t.Errorf("got %v, expected %v, %v", got, d.expected, d)
+		}
+		if rst := d.input.y.Equal(d.input.x); rst != d.expected {
+			t.Errorf("got %v, expected %v, %v", rst, d.expected, d)
 		}
 	}
 }
@@ -59,47 +57,32 @@ func TestStateEq02(t *testing.T) {
 	d := &State{
 		Trans: map[byte]*State{1: x, 2: y, 3: x},
 	}
-	if rst, exp := a.Equal(b), true; rst != exp {
-		t.Errorf("got %v, expected %v\n", rst, exp)
+	if got, expected := a.Equal(b), true; got != expected {
+		t.Errorf("got %v, expected %v", got, expected)
 	}
 
 	a.SetOutput('a', 1)
 	b.SetOutput('a', 2)
-	if rst, exp := a.Equal(b), false; rst != exp {
-		t.Errorf("got %v, expected %v\n", rst, exp)
+	if got, expected := a.Equal(b), false; got != expected {
+		t.Errorf("got %v, expected %v", got, expected)
 	}
 
-	if rst, exp := a.Equal(c), false; rst != exp {
-		t.Errorf("got %v, expected %v\n", rst, exp)
+	if got, expected := a.Equal(c), false; got != expected {
+		t.Errorf("got %v, expected %v", got, expected)
 	}
-	if rst, exp := a.Equal(c), false; rst != exp {
-		t.Errorf("got %v, expected %v\n", rst, exp)
+	if got, expected := a.Equal(c), false; got != expected {
+		t.Errorf("got %v, expected %v", got, expected)
 	}
-	if rst, exp := a.Equal(d), false; rst != exp {
-		t.Errorf("got %v, expected %v\n", rst, exp)
+	if got, expected := a.Equal(d), false; got != expected {
+		t.Errorf("got %v, expected %v", got, expected)
 	}
 
 }
 
-func TestStateString01(t *testing.T) {
-	crs := []struct {
-		call *State
-		resp string
-	}{
-		{nil, "<nil>"},
+func TestStateString(t *testing.T) {
+	expected := "<nil>"
+	var s *State
+	if got := s.String(); got != "<nil>" {
+		t.Errorf("got %v, expected %v", got, expected)
 	}
-	for _, cr := range crs {
-		if rst := cr.call.String(); rst != cr.resp {
-			t.Errorf("got %v, expected %v, %v\n", rst, cr.resp, cr)
-		}
-	}
-	r := &State{}
-	s := State{
-		ID:      1,
-		Trans:   map[byte]*State{1: nil, 2: r},
-		Output:  map[byte]int32{3: 555, 4: 888},
-		Tail:    int32Set{1111: struct{}{}},
-		IsFinal: true,
-	}
-	fmt.Println(s.String())
 }

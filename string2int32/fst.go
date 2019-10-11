@@ -64,7 +64,10 @@ type Configuration struct {
 	Outputs []int32 // outputs
 }
 
-const maxUint16 = 1<<16 - 1
+const (
+	maxUint16 = 1<<16 - 1
+	maxUint32 = 1<<32 - 1
+)
 
 type byteSlice []byte
 
@@ -125,7 +128,9 @@ func (m MAST) BuildFST() (*FST, error) {
 			}
 
 			jump := len(prog) - addr + 1
-			if jump > maxUint16 {
+			if jump > maxUint32 {
+				panic("too long jump, " + fmt.Sprintf("%d", jump))
+			} else if jump > maxUint16 {
 				prog = append(prog, Instruction(jump))
 				jump = 0
 			}
@@ -178,7 +183,7 @@ func (t FST) String() string {
 		op = Operation((code & 0xFF000000) >> 24)
 		ch = byte((code & 0x00FF0000) >> 16)
 		v16 = uint16(code & 0x0000FFFF)
-		switch Operation(op) {
+		switch op {
 		case Accept, AcceptBreak:
 			fmt.Fprintf(&b, "%3d %v\t%d %d\n", pc, op, ch, v16)
 			if ch == 0 {

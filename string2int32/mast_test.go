@@ -10,13 +10,13 @@ func TestMASTBuildMAST01(t *testing.T) {
 	inp := PairSlice{}
 	m := BuildMAST(inp)
 	if m.StartingState.ID != 0 {
-		t.Errorf("got initial State id %v, expected 0\n", m.StartingState.ID)
+		t.Errorf("got initial State id %v, expected 0", m.StartingState.ID)
 	}
 	if len(m.States) != 1 {
-		t.Errorf("expected: initial State only, got %v\n", m.States)
+		t.Errorf("expected: initial State only, got %v", m.States)
 	}
 	if len(m.FinalStates) != 0 {
-		t.Errorf("expected: final State is empty, got %v\n", m.FinalStates)
+		t.Errorf("expected: final State is empty, got %v", m.FinalStates)
 	}
 }
 
@@ -32,11 +32,11 @@ func TestMASTAccept01(t *testing.T) {
 	m := BuildMAST(input)
 	for _, pair := range input {
 		if ok := m.Accept(pair.In); !ok {
-			t.Errorf("expected: Accept [%v]\n", pair.In)
+			t.Errorf("expected: Accept [%v]", pair.In)
 		}
 	}
 	if ok := m.Accept("aloha"); ok {
-		t.Errorf("expected: reject \"aloha\"\n")
+		t.Errorf("expected: reject 'aloha'")
 	}
 }
 
@@ -53,17 +53,17 @@ func TestMASTRun01(t *testing.T) {
 	for _, pair := range input {
 		out, ok := m.Run(pair.In)
 		if !ok {
-			t.Errorf("expected: Accept [%v]\n", pair.In)
+			t.Errorf("expected: Accept [%v]", pair.In)
 		}
 		if len(out) != 1 {
-			t.Errorf("input: %v, output size: got %v, expected 1\n", pair.In, len(out))
+			t.Errorf("input: %v, output size: got %v, expected 1", pair.In, len(out))
 		}
 		if out[0] != pair.Out {
-			t.Errorf("input: %v, output: got %v, expected %v\n", pair.In, pair.Out, out[0])
+			t.Errorf("input: %v, output: got %v, expected %v", pair.In, pair.Out, out[0])
 		}
 	}
 	if out, ok := m.Run("aloha"); ok {
-		t.Errorf("expected: reject \"aloha\", %v\n", out)
+		t.Errorf("expected: reject 'aloha', %v", out)
 	}
 }
 
@@ -76,18 +76,18 @@ func TestMASTRun02(t *testing.T) {
 	for _, pair := range inp {
 		out, ok := m.Run(pair.In)
 		if !ok {
-			t.Errorf("expected: Accept [%v]\n", pair.In)
+			t.Errorf("expected: Accept [%v]", pair.In)
 		}
 		if len(out) != 2 {
-			t.Errorf("input: %v, output size: got %v, expected 2\n", pair.In, len(out))
+			t.Errorf("input: %v, output size: got %v, expected 2", pair.In, len(out))
 		}
 		expected := []int32{1111, 2222}
 		if !reflect.DeepEqual(out, expected) {
-			t.Errorf("input: %v, output: got %v, expected %v\n", pair.In, out, expected)
+			t.Errorf("input: %v, output: got %v, expected %v", pair.In, out, expected)
 		}
 	}
 	if out, ok := m.Run("aloha"); ok {
-		t.Errorf("expected: reject \"aloha\", %v\n", out)
+		t.Errorf("expected: reject 'aloha', %v", out)
 	}
 }
 

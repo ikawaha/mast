@@ -23,27 +23,6 @@ func TestFSTRun01(t *testing.T) {
 		t.Fatalf("unexpected error, %v", err)
 	}
 
-	t.Run("graph output", func(t *testing.T) {
-		var b bytes.Buffer
-		m.Dot(&b)
-		expected := `digraph G {
-	rankdir=LR;
-	node [shape=circle]
-	0 [peripheries = 2];
-	3 [peripheries = 2];
-	1 -> 0 [label="63(c)/ε"];
-	2 -> 1 [label="65(e)/ε"];
-	4 -> 3 [label="62(b)/ε [28 29 30]"];
-	5 -> 4 [label="65(e)/ε"];
-	6 -> 2 [label="64(d)/31"];
-	6 -> 5 [label="66(f)/ε"];
-}
-`
-		if got := b.String(); got != expected {
-			t.Errorf("got %v, expected %v", got, expected)
-		}
-	})
-
 	t.Run("machine code", func(t *testing.T) {
 		expected := `  0 OUTPUT	64(d) 7
   1 [31]
@@ -93,28 +72,6 @@ func TestFSTRun02(t *testing.T) {
 		t.Fatalf("unexpected error, %v", err)
 	}
 
-	t.Run("graph output", func(t *testing.T) {
-		var b bytes.Buffer
-		m.Dot(&b)
-		expected := `digraph G {
-	rankdir=LR;
-	node [shape=circle]
-	0 [peripheries = 2];
-	3 [peripheries = 2];
-	1 -> 0 [label="63(c)/ε"];
-	2 -> 1 [label="65(e)/ε"];
-	4 -> 3 [label="62(b)/ε [28 29 30]"];
-	5 -> 4 [label="65(e)/ε"];
-	6 -> 2 [label="64(d)/31"];
-	6 -> 5 [label="66(f)/ε"];
-}
-`
-		if got := b.String(); got != expected {
-			fmt.Println(fst.Data)
-			t.Errorf("got %v, expected %v", got, expected)
-		}
-	})
-
 	t.Run("machine code", func(t *testing.T) {
 		expected := `  0 OUTPUT	64(d) 7
   1 [31]
@@ -154,7 +111,7 @@ func TestFSTRun02(t *testing.T) {
 func TestFSTRun03(t *testing.T) {
 	inp := PairSlice{
 		{In: "feb", Out: 0},
-		{In: "february", Out: 1},
+		{In: "february", Out: maxUint16 + 1},
 	}
 	m := BuildMAST(inp)
 	fst, err := m.BuildFST()
@@ -162,36 +119,13 @@ func TestFSTRun03(t *testing.T) {
 		t.Fatalf("unexpected error, %v", err)
 	}
 
-	t.Run("graph output", func(t *testing.T) {
-		var b bytes.Buffer
-		m.Dot(&b)
-		expected := `digraph G {
-	rankdir=LR;
-	node [shape=circle]
-	0 [peripheries = 2];
-	5 [peripheries = 2];
-	1 -> 0 [label="79(y)/ε"];
-	2 -> 1 [label="72(r)/ε"];
-	3 -> 2 [label="61(a)/ε"];
-	4 -> 3 [label="75(u)/ε"];
-	5 -> 4 [label="72(r)/1"];
-	6 -> 5 [label="62(b)/ε"];
-	7 -> 6 [label="65(e)/ε"];
-	8 -> 7 [label="66(f)/ε"];
-}
-`
-		if got := b.String(); got != expected {
-			t.Errorf("got %v, expected %v", got, expected)
-		}
-	})
-
 	t.Run("machine code", func(t *testing.T) {
 		expected := `  0 MATCHB	66(f) 1
   1 MATCHB	65(e) 1
   2 MATCHB	62(b) 1
   3 ACCEPT	0 0
   4 OUTPUTB	72(r) 1
-  5 [1]
+  5 [65536]
   6 MATCHB	75(u) 1
   7 MATCHB	61(a) 1
   8 MATCHB	72(r) 1
@@ -213,7 +147,7 @@ func TestFSTRun03(t *testing.T) {
 			{
 				PC:      10,
 				Head:    8,
-				Outputs: []int32{1},
+				Outputs: []int32{65536},
 			},
 		}
 		got, ok := fst.Run("february")
@@ -235,12 +169,12 @@ func TestFSTSearch01(t *testing.T) {
 	m := BuildMAST(input)
 	fst, err := m.BuildFST()
 	if err != nil {
-		t.Errorf("unexpected error: %v\n", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 	for _, p := range input {
 		outs := fst.Search(p.In)
 		if !reflect.DeepEqual(outs, []int32{p.Out}) {
-			t.Errorf("input %v, got %v, expected %v\n", p.In, outs, []int32{p.Out})
+			t.Errorf("input %v, got %v, expected %v", p.In, outs, []int32{p.Out})
 		}
 	}
 }
@@ -255,7 +189,7 @@ func TestFSTSearch02(t *testing.T) {
 	m := BuildMAST(input)
 	fst, err := m.BuildFST()
 	if err != nil {
-		t.Errorf("unexpected error: %v\n", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 
 	testdata := []struct {
@@ -269,7 +203,7 @@ func TestFSTSearch02(t *testing.T) {
 	for _, d := range testdata {
 		outs := fst.Search(d.input)
 		if !reflect.DeepEqual(outs, d.expected) {
-			t.Errorf("input %v, got %v, expected %v\n", d.input, outs, d.expected)
+			t.Errorf("input %v, got %v, expected %v", d.input, outs, d.expected)
 		}
 	}
 }
@@ -284,7 +218,7 @@ func TestFSTSearch03(t *testing.T) {
 	m := BuildMAST(input)
 	fst, err := m.BuildFST()
 	if err != nil {
-		t.Errorf("unexpected error: %v\n", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 
 	testdata := []struct {
@@ -298,7 +232,7 @@ func TestFSTSearch03(t *testing.T) {
 	for _, d := range testdata {
 		outs := fst.Search(d.input)
 		if !reflect.DeepEqual(outs, d.expected) {
-			t.Errorf("input %v, got %v, expected %v\n", d.input, outs, d.expected)
+			t.Errorf("input %v, got %v, expected %v", d.input, outs, d.expected)
 		}
 	}
 }
@@ -314,7 +248,7 @@ func TestFSTSearch06(t *testing.T) {
 	m := BuildMAST(input)
 	fst, err := m.BuildFST()
 	if err != nil {
-		t.Errorf("unexpected error: %v\n", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 	testdata := []struct {
 		input    string
@@ -333,7 +267,7 @@ func TestFSTSearch06(t *testing.T) {
 	for _, d := range testdata {
 		outs := fst.Search(d.input)
 		if !reflect.DeepEqual(outs, d.expected) {
-			t.Errorf("input:%v, got %v, expected %v\n", d.input, outs, d.expected)
+			t.Errorf("input:%v, got %v, expected %v", d.input, outs, d.expected)
 		}
 	}
 }
@@ -349,7 +283,7 @@ func TestFSTPrefixSearch01(t *testing.T) {
 	m := BuildMAST(input)
 	fst, err := m.BuildFST()
 	if err != nil {
-		t.Errorf("unexpected error: %v\n", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 
 	testdata := []struct {
@@ -370,10 +304,10 @@ func TestFSTPrefixSearch01(t *testing.T) {
 	for _, d := range testdata {
 		pos, outs := fst.PrefixSearch(d.input)
 		if !reflect.DeepEqual(outs, d.outputs) {
-			t.Errorf("input:%v, got %v, expected %v\n", d.input, outs, d.outputs)
+			t.Errorf("input:%v, got %v, expected %v", d.input, outs, d.outputs)
 		}
 		if pos != d.pos {
-			t.Errorf("input:%v, got %v, expected %v\n", d.input, pos, d.pos)
+			t.Errorf("input:%v, got %v, expected %v", d.input, pos, d.pos)
 		}
 	}
 }
@@ -389,7 +323,7 @@ func TestFSTCommonPrefixSearch01(t *testing.T) {
 	m := BuildMAST(input)
 	fst, err := m.BuildFST()
 	if err != nil {
-		t.Errorf("unexpected error: %v\n", err)
+		t.Errorf("unexpected error: %v", err)
 	}
 
 	testdata := []struct {
@@ -410,20 +344,20 @@ func TestFSTCommonPrefixSearch01(t *testing.T) {
 	for _, d := range testdata {
 		lens, outs := fst.CommonPrefixSearch(d.input)
 		if !reflect.DeepEqual(lens, d.lens) {
-			t.Errorf("input:%v, got %v %v, expected %v %v\n", d.input, lens, outs, d.lens, d.outputs)
+			t.Errorf("input:%v, got %v %v, expected %v %v", d.input, lens, outs, d.lens, d.outputs)
 		}
 		for i := range lens {
 			sort.Sort(int32Slice(outs[i]))
 			sort.Sort(int32Slice(d.outputs[i]))
 			if !reflect.DeepEqual(outs[i], d.outputs[i]) {
-				t.Errorf("input:%v, got %v %v, expected %v %v\n", d.input, lens, outs, d.lens, d.outputs)
+				t.Errorf("input:%v, got %v %v, expected %v %v", d.input, lens, outs, d.lens, d.outputs)
 			}
 		}
 	}
 }
 
 func TestFSTSaveAndLoad01(t *testing.T) {
-	inp := PairSlice{
+	input := PairSlice{
 		{"feb", 28},
 		{"feb", 29},
 		{"apr", 30},
@@ -433,37 +367,36 @@ func TestFSTSaveAndLoad01(t *testing.T) {
 		{"dec", 31},
 	}
 
-	m := BuildMAST(inp)
-	org, e := m.BuildFST()
-	if e != nil {
-		t.Errorf("unexpected error: %v\n", e)
+	m := BuildMAST(input)
+	src, err := m.BuildFST()
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
 	}
 
 	var b bytes.Buffer
-	n, e := org.WriteTo(&b)
-	if e != nil {
-		t.Errorf("unexpected error: %v\n", e)
+	n, err := src.WriteTo(&b)
+	if err != nil {
+		t.Errorf("unexpected error: %v\n", err)
 	}
 	if n != int64(b.Len()) {
 		t.Errorf("write len: got %v, expected %v", n, b.Len())
 	}
 
-	rst, e := Read(&b)
-	if e != nil {
-		t.Errorf("unexpected error: %v\n", e)
+	dst, err := Read(&b)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
 	}
 
-	if !reflect.DeepEqual(org.Data, rst.Data) {
-		t.Errorf("Data:got %v, expected %v\n", rst.Data, org.Data)
+	if !reflect.DeepEqual(src.Data, dst.Data) {
+		t.Errorf("Data:got %v, expected %v", dst.Data, src.Data)
 	}
-	if !reflect.DeepEqual(org.Program, rst.Program) {
-		t.Errorf("Program:got %v, expected %v\n", rst.Program, org.Program)
+	if !reflect.DeepEqual(src.Program, dst.Program) {
+		t.Errorf("Program:got %v, expected %v", dst.Program, src.Program)
 	}
 }
 
 func TestFSTOperationString(t *testing.T) {
-
-	ps := []struct {
+	testdata := []struct {
 		op   Operation
 		name string
 	}{
@@ -479,9 +412,9 @@ func TestFSTOperationString(t *testing.T) {
 		{9, "NA[9]"},
 	}
 
-	for _, p := range ps {
-		if p.op.String() != p.name {
-			t.Errorf("got %v, expected %v", p.op.String(), p.name)
+	for _, d := range testdata {
+		if d.op.String() != d.name {
+			t.Errorf("got %v, expected %v", d.op.String(), d.name)
 		}
 	}
 }
@@ -496,18 +429,17 @@ func TestFSTStress(t *testing.T) {
 	var ps PairSlice
 	s := bufio.NewScanner(fp)
 	for i := 0; s.Scan(); i++ {
-		p := Pair{In: s.Text(), Out: int32(i)}
+		p := Pair{In: s.Text(), Out: maxUint16 + int32(i)}
 		ps = append(ps, p)
 	}
-	if e := s.Err(); e != nil {
-		t.Fatalf("unexpected error, %v", e)
+	if err := s.Err(); err != nil {
+		t.Fatalf("unexpected error, %v", err)
 	}
 	m := BuildMAST(ps)
 	fst, err := m.BuildFST()
 	if err != nil {
 		t.Fatalf("unexpected error, %v", err)
 	}
-
 	for _, p := range ps {
 		ids := fst.Search(p.In)
 		if !func(s []int32, x int32) bool {
