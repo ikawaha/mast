@@ -25,8 +25,14 @@ jobs:
           go test ./...
           go test -covermode=count -coverprofile=coverage.txt ./...
 
-      - name: codecov
+      - name: Codecov
         uses: codecov/codecov-action@v1.0.2
         with:
           token: ${{secrets.CODECOV_TOKEN}}
           file: ./coverage.txt
+
+      - name: Coveralls
+        uses: coverallsapp/github-action@master
+        with:
+          github-token: ${{ secrets.github_token }}
+          path-to-lcov: ./coverage.txt
