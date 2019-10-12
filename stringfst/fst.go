@@ -112,6 +112,8 @@ func (t FST) PrefixSearch(keyword string) (length int, output []string) {
 	return -1, nil
 }
 
+// CommonPrefixSearch finds keywords sharing common prefix and it returns its lengths and outputs.
+// If there are no common prefix keywords, it returns (nil, nil).
 func (t FST) CommonPrefixSearch(keyword string) (lens []int, outputs [][]string) {
 	t.Run(keyword, func(snapshot Configuration) {
 		lens = append(lens, snapshot.Head)
