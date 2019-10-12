@@ -1,4 +1,4 @@
-package string
+package stringfst
 
 // Pair implements a pair of input and output.
 type Pair struct {

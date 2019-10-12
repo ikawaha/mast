@@ -1,4 +1,4 @@
-package int32
+package int32fst
 
 import (
 	"fmt"
@@ -121,7 +121,7 @@ func (s *State) Equal(dst *State) bool {
 	return true
 }
 
-// String returns the string representation of the state.
+// String returns the stringfst representation of the state.
 func (s *State) String() string {
 	if s == nil {
 		return "<nil>"

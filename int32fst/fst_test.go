@@ -1,4 +1,4 @@
-package int32
+package int32fst
 
 import (
 	"bufio"
@@ -18,37 +18,6 @@ func (t *FST) runTester(input string) (cs []Configuration, accept bool) {
 	return cs, accept
 }
 
-func (t FST) searchTester(input string) []int32 {
-	snap, acc := t.runTester(input)
-	if !acc || len(snap) == 0 {
-		return nil
-	}
-	c := snap[len(snap)-1]
-	return c.Outputs
-}
-
-func (t FST) prefixSearchTester(input string) (length int, output []int32) {
-	snap, _ := t.runTester(input)
-	if len(snap) == 0 {
-		return -1, nil
-	}
-	c := snap[len(snap)-1]
-	return c.Head, c.Outputs
-}
-
-func (t FST) commonPrefixSearchTester(input string) (lens []int, outputs [][]int32) {
-	snap, _ := t.runTester(input)
-	if len(snap) == 0 {
-		return lens, outputs
-	}
-	for _, c := range snap {
-		lens = append(lens, c.Head)
-		outputs = append(outputs, c.Outputs)
-	}
-	return lens, outputs
-
-}
-
 func TestFSTRun01(t *testing.T) {
 	input := PairSlice{
 		{In: "feb", Out: 28},
@@ -56,8 +25,7 @@ func TestFSTRun01(t *testing.T) {
 		{In: "feb", Out: 30},
 		{In: "dec", Out: 31},
 	}
-	m := BuildMAST(input)
-	fst, err := m.BuildFST()
+	fst, err := New(input)
 	if err != nil {
 		t.Fatalf("unexpected error, %v", err)
 	}
@@ -106,7 +74,7 @@ func TestFSTRun02(t *testing.T) {
 		{In: "dec", Out: 31},
 	}
 	m := BuildMAST(inp)
-	fst, err := m.BuildFST()
+	fst, err := BuildFST(m)
 	if err != nil {
 		t.Fatalf("unexpected error, %v", err)
 	}
@@ -153,7 +121,7 @@ func TestFSTRun03(t *testing.T) {
 		{In: "february", Out: maxUint16 + 1},
 	}
 	m := BuildMAST(inp)
-	fst, err := m.BuildFST()
+	fst, err := BuildFST(m)
 	if err != nil {
 		t.Fatalf("unexpected error, %v", err)
 	}
@@ -205,13 +173,12 @@ func TestFSTSearch01(t *testing.T) {
 		{In: "1a22", Out: 111},
 		{In: "1b22yss", Out: 222},
 	}
-	m := BuildMAST(input)
-	fst, err := m.BuildFST()
+	fst, err := New(input)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
 	for _, p := range input {
-		outs := fst.searchTester(p.In)
+		outs := fst.Search(p.In)
 		if !reflect.DeepEqual(outs, []int32{p.Out}) {
 			t.Errorf("input %v, got %v, expected %v", p.In, outs, []int32{p.Out})
 		}
@@ -225,8 +192,7 @@ func TestFSTSearch02(t *testing.T) {
 		{In: "goodbye", Out: 222},
 		{In: "goodbye", Out: 333},
 	}
-	m := BuildMAST(input)
-	fst, err := m.BuildFST()
+	fst, err := New(input)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -240,7 +206,7 @@ func TestFSTSearch02(t *testing.T) {
 		{input: "goodbye", expected: []int32{222, 333}},
 	}
 	for _, d := range testdata {
-		outs := fst.searchTester(d.input)
+		outs := fst.Search(d.input)
 		if !reflect.DeepEqual(outs, d.expected) {
 			t.Errorf("input %v, got %v, expected %v", d.input, outs, d.expected)
 		}
@@ -254,8 +220,7 @@ func TestFSTSearch03(t *testing.T) {
 		{In: "goodbye", Out: 0},
 		{In: "goodbye", Out: 0},
 	}
-	m := BuildMAST(input)
-	fst, err := m.BuildFST()
+	fst, err := New(input)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -269,7 +234,7 @@ func TestFSTSearch03(t *testing.T) {
 		{input: "goodbye", expected: []int32{0}},
 	}
 	for _, d := range testdata {
-		outs := fst.searchTester(d.input)
+		outs := fst.Search(d.input)
 		if !reflect.DeepEqual(outs, d.expected) {
 			t.Errorf("input %v, got %v, expected %v", d.input, outs, d.expected)
 		}
@@ -284,8 +249,7 @@ func TestFSTSearch04(t *testing.T) {
 		{In: "すもも", Out: 333},
 		{In: "すもも", Out: 444},
 	}
-	m := BuildMAST(input)
-	fst, err := m.BuildFST()
+	fst, err := New(input)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -304,7 +268,7 @@ func TestFSTSearch04(t *testing.T) {
 	}
 
 	for _, d := range testdata {
-		outs := fst.searchTester(d.input)
+		outs := fst.Search(d.input)
 		if !reflect.DeepEqual(outs, d.expected) {
 			t.Errorf("input:%v, got %v, expected %v", d.input, outs, d.expected)
 		}
@@ -319,8 +283,7 @@ func TestFSTPrefixSearch01(t *testing.T) {
 		{In: "すもも", Out: 333},
 		{In: "すもも", Out: 444},
 	}
-	m := BuildMAST(input)
-	fst, err := m.BuildFST()
+	fst, err := New(input)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -341,7 +304,7 @@ func TestFSTPrefixSearch01(t *testing.T) {
 	}
 
 	for _, d := range testdata {
-		pos, outs := fst.prefixSearchTester(d.input)
+		pos, outs := fst.PrefixSearch(d.input)
 		if !reflect.DeepEqual(outs, d.outputs) {
 			t.Errorf("input:%v, got %v, expected %v", d.input, outs, d.outputs)
 		}
@@ -353,14 +316,13 @@ func TestFSTPrefixSearch01(t *testing.T) {
 
 func TestFSTCommonPrefixSearch01(t *testing.T) {
 	input := PairSlice{
-		{"こんにちは", 111},
-		{"世界", 222},
-		{"すもももももも", 333},
-		{"すもも", 333},
-		{"すもも", 444},
+		{In: "こんにちは", Out: 111},
+		{In: "世界", Out: 222},
+		{In: "すもももももも", Out: 333},
+		{In: "すもも", Out: 333},
+		{In: "すもも", Out: 444},
 	}
-	m := BuildMAST(input)
-	fst, err := m.BuildFST()
+	fst, err := New(input)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -381,7 +343,7 @@ func TestFSTCommonPrefixSearch01(t *testing.T) {
 	}
 
 	for _, d := range testdata {
-		lens, outs := fst.commonPrefixSearchTester(d.input)
+		lens, outs := fst.CommonPrefixSearch(d.input)
 		if !reflect.DeepEqual(lens, d.lens) {
 			t.Errorf("input:%v, got %v %v, expected %v %v", d.input, lens, outs, d.lens, d.outputs)
 		}
@@ -396,18 +358,17 @@ func TestFSTCommonPrefixSearch01(t *testing.T) {
 }
 
 func TestFSTSaveAndLoad01(t *testing.T) {
-	input := PairSlice{
-		{"feb", 28},
-		{"feb", 29},
-		{"apr", 30},
-		{"jan", 31},
-		{"jun", 30},
-		{"jul", 31},
-		{"dec", 31},
+	var input = PairSlice{
+		{In: "feb", Out: 28},
+		{In: "feb", Out: 29},
+		{In: "apr", Out: 30},
+		{In: "jan", Out: 31},
+		{In: "jun", Out: 30},
+		{In: "jul", Out: 31},
+		{In: "dec", Out: 31},
 	}
-
 	m := BuildMAST(input)
-	src, err := m.BuildFST()
+	src, err := BuildFST(m)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -439,16 +400,16 @@ func TestFSTOperationString(t *testing.T) {
 		op   Operation
 		name string
 	}{
-		{0, "UNDEF0"},
-		{1, "ACCEPT"},
-		{2, "ACCEPTB"},
-		{3, "MATCH"},
-		{4, "MATCHB"},
-		{5, "OUTPUT"},
-		{6, "OUTPUTB"},
-		{7, "UNDEF7"},
-		{8, "NA[8]"},
-		{9, "NA[9]"},
+		{op: 0, name: "UNDEF0"},
+		{op: 1, name: "ACCEPT"},
+		{op: 2, name: "ACCEPTB"},
+		{op: 3, name: "MATCH"},
+		{op: 4, name: "MATCHB"},
+		{op: 5, name: "OUTPUT"},
+		{op: 6, name: "OUTPUTB"},
+		{op: 7, name: "UNDEF7"},
+		{op: 8, name: "NA[8]"},
+		{op: 9, name: "NA[9]"},
 	}
 
 	for _, d := range testdata {
@@ -475,12 +436,12 @@ func TestFSTStress(t *testing.T) {
 		t.Fatalf("unexpected error, %v", err)
 	}
 	m := BuildMAST(ps)
-	fst, err := m.BuildFST()
+	fst, err := BuildFST(m)
 	if err != nil {
 		t.Fatalf("unexpected error, %v", err)
 	}
 	for _, p := range ps {
-		ids := fst.searchTester(p.In)
+		ids := fst.Search(p.In)
 		if !func(s []int32, x int32) bool {
 			for i := range s {
 				if x == s[i] {
@@ -492,4 +453,186 @@ func TestFSTStress(t *testing.T) {
 			t.Errorf("input:%v, got %v, but not input %v", p.In, ids, p.Out)
 		}
 	}
+}
+
+func TestSearch(t *testing.T) {
+	input := PairSlice{
+		{In: "こんにちは", Out: 111},
+		{In: "世界", Out: 222},
+		{In: "すもももももも", Out: 333},
+		{In: "すもも", Out: 333},
+	}
+	fst, err := New(input)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	for _, v := range input {
+		expected := []int32{v.Out}
+		if got := fst.Search(v.In); !reflect.DeepEqual(got, expected) {
+			t.Errorf("got %v, expected %v, %v", got, expected, v.In)
+		}
+	}
+	// expected not to be found.
+	if got := fst.Search("すももも"); got != nil {
+		t.Errorf("got %v, expected nil", got)
+	}
+}
+
+func TestPrefixSearch(t *testing.T) {
+	var input = PairSlice{
+		{In: "東京", Out: 1},
+		{In: "東京チョコレート", Out: 2},
+		{In: "東京チョコレートMIX", Out: 3},
+		{In: "hello", Out: 4},
+		{In: "goodbye", Out: 5},
+		{In: "good", Out: 6},
+		{In: "go", Out: 7},
+		{In: "gopher", Out: 8},
+	}
+	fst, err := New(input)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	t.Run("東京チョコレートMIX", func(t *testing.T) {
+		length, outs := fst.PrefixSearch("東京チョコレートMIX!!!")
+		if expected := len("東京チョコレートMIX"); length != expected {
+			t.Errorf("got %v, expected %v", length, expected)
+		}
+		if expected := []int32{3}; !reflect.DeepEqual(outs, expected) {
+			t.Errorf("got %v, expected %v", outs, expected)
+		}
+	})
+
+	t.Run("good-by", func(t *testing.T) {
+		length, outs := fst.PrefixSearch("good-by")
+		if expected := len("good"); length != expected {
+			t.Errorf("got %v, expected %v", length, expected)
+		}
+		if expected := []int32{6}; !reflect.DeepEqual(outs, expected) {
+			t.Errorf("got %v, expected %v", outs, expected)
+		}
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		length, outs := fst.PrefixSearch("aloha")
+		if expected := -1; length != expected {
+			t.Errorf("got %v, expected %v", length, expected)
+		}
+		if outs != nil {
+			t.Errorf("got %v, expected nil", outs)
+		}
+	})
+}
+
+func TestCommonPrefixSearch(t *testing.T) {
+	input := PairSlice{
+		{In: "東京", Out: 1},
+		{In: "東京チョコレート", Out: 2},
+		{In: "東京チョコレートMIX", Out: 3},
+		{In: "hello", Out: 4},
+		{In: "goodbye", Out: 5},
+		{In: "good", Out: 6},
+		{In: "go", Out: 7},
+		{In: "go", Out: 77},
+		{In: "gopher", Out: 8},
+	}
+	fst, err := New(input)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	t.Run("東京チョコレートMIX", func(t *testing.T) {
+		lens, outs := fst.CommonPrefixSearch("東京チョコレートMIX!!!")
+		expectedLens := []int{len("東京"), len("東京チョコレート"), len("東京チョコレートMIX")}
+		if !reflect.DeepEqual(lens, expectedLens) {
+			t.Errorf("got %v, expected %v", lens, expectedLens)
+		}
+		expectedOuts := [][]int32{{1}, {2}, {3}}
+		if !reflect.DeepEqual(outs, expectedOuts) {
+			t.Errorf("got %v, expected %v", outs, expectedOuts)
+		}
+	})
+
+	t.Run("good-by", func(t *testing.T) {
+		lens, outs := fst.CommonPrefixSearch("good-by")
+		expectedLens := []int{len("go"), len("good")}
+		if !reflect.DeepEqual(lens, expectedLens) {
+			t.Errorf("got %v, expected %v", lens, expectedLens)
+		}
+		expectedOuts := [][]int32{{7, 77}, {6}}
+		if !reflect.DeepEqual(outs, expectedOuts) {
+			t.Errorf("got %v, expected %v", outs, expectedOuts)
+		}
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		lens, outs := fst.CommonPrefixSearch("aloha")
+		if lens != nil {
+			t.Errorf("got %v, expected nil", lens)
+		}
+		if outs != nil {
+			t.Errorf("got %v, expected nil", outs)
+		}
+	})
+}
+
+func TestCommonPrefixSearchCallback(t *testing.T) {
+	var input = PairSlice{
+		{In: "東京", Out: 1},
+		{In: "東京チョコレート", Out: 2},
+		{In: "東京チョコレートMIX", Out: 3},
+		{In: "hello", Out: 4},
+		{In: "goodbye", Out: 5},
+		{In: "good", Out: 6},
+		{In: "go", Out: 7},
+		{In: "go", Out: 77},
+		{In: "gopher", Out: 8},
+	}
+	fst, err := New(input)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	t.Run("東京チョコレートMIX", func(t *testing.T) {
+		var (
+			lens []int
+			outs [][]int32
+		)
+		fst.CommonPrefixSearchCallback("東京チョコレートMIX!!!", func(length int, outputs []int32) {
+			lens = append(lens, length)
+			outs = append(outs, outputs)
+		})
+		expectedLens := []int{len("東京"), len("東京チョコレート"), len("東京チョコレートMIX")}
+		if !reflect.DeepEqual(lens, expectedLens) {
+			t.Errorf("got %v, expected %v", lens, expectedLens)
+		}
+		expectedOuts := [][]int32{{1}, {2}, {3}}
+		if !reflect.DeepEqual(outs, expectedOuts) {
+			t.Errorf("got %v, expected %v", outs, expectedOuts)
+		}
+	})
+
+	t.Run("good-by", func(t *testing.T) {
+		var (
+			lens []int
+			outs [][]int32
+		)
+		fst.CommonPrefixSearchCallback("good-by", func(length int, outputs []int32) {
+			lens = append(lens, length)
+			outs = append(outs, outputs)
+		})
+		expectedLens := []int{len("go"), len("good")}
+		if !reflect.DeepEqual(lens, expectedLens) {
+			t.Errorf("got %v, expected %v", lens, expectedLens)
+		}
+		expectedOuts := [][]int32{{7, 77}, {6}}
+		if !reflect.DeepEqual(outs, expectedOuts) {
+			t.Errorf("got %v, expected %v", outs, expectedOuts)
+		}
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		fst.CommonPrefixSearchCallback("aloha", func(length int, outputs []int32) {
+			// expects not to call
+			t.Errorf("unecpected call, length %v, outputs %v", length, outputs)
+		})
+	})
 }

@@ -1,4 +1,4 @@
-package int32
+package int32fst
 
 // Pair implements a pair of input and output.
 type Pair struct {

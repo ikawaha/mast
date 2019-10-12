@@ -1,4 +1,4 @@
-package int32
+package int32fst
 
 import (
 	"os"

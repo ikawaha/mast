@@ -1,4 +1,4 @@
-package int32
+package int32fst
 
 import (
 	"bufio"
@@ -90,12 +90,54 @@ func (p Program) Reverse() {
 }
 
 // New constructs string to int32 FST.
-func New(input PairSlice) (*FST, error) {
-	return BuildMAST(input).BuildFST()
+func New(input []Pair) (*FST, error) {
+	return BuildFST(BuildMAST(input))
+}
+
+// Search runs the FST for the given keyword and it returns outputs if accepted otherwise nil.
+func (t FST) Search(keyword string) []int32 {
+	var c Configuration
+	t.Run(keyword, func(snapshot Configuration) {
+		if snapshot.Head == len(keyword) {
+			c = snapshot
+		}
+	})
+	return c.Outputs
+}
+
+// PrefixSearch returns the longest common prefix keyword and its length.
+// If there is no common prefix keyword, it returns (-1, nil).
+func (t FST) PrefixSearch(keyword string) (length int, output []int32) {
+	var c Configuration
+	t.Run(keyword, func(snapshot Configuration) {
+		c = snapshot
+	})
+	if c.Head > 0 {
+		return c.Head, c.Outputs
+	}
+	return -1, nil
+}
+
+// CommonPrefixSearch finds keywords sharing common prefix and it returns its lengths and outputs.
+// If there are no common prefix keywords, it returns (nil, nil).
+func (t FST) CommonPrefixSearch(keyword string) (lens []int, outputs [][]int32) {
+	t.Run(keyword, func(snapshot Configuration) {
+		lens = append(lens, snapshot.Head)
+		outputs = append(outputs, snapshot.Outputs)
+	})
+	return lens, outputs
+}
+
+// CommonPrefixSearchCallback finds keywords sharing common prefix and calls the callback function
+// every time it founds common prefix to notify its length and output.
+func (t FST) CommonPrefixSearchCallback(keyword string, callback func(lenght int, outputs []int32)) {
+	t.Run(keyword, func(snapshot Configuration) {
+		callback(snapshot.Head, snapshot.Outputs)
+	})
 }
 
 // BuildFST generates virtual machine code of an FST from a minimal acyclic subsequential transducer.
-func (m MAST) BuildFST() (*FST, error) {
+func BuildFST(m *MAST) (*FST, error) {
 	var (
 		prog  Program
 		data  []int32
@@ -311,7 +353,9 @@ func (t *FST) Run(input string, callback func(snapshot Configuration)) {
 				pc++
 				inst = t.Program[pc]
 				from := inst
-				c.Outputs = t.Data[from:to]
+				tmp := make([]int32, len(t.Data[from:to]))
+				copy(tmp, t.Data[from:to])
+				c.Outputs = tmp
 				pc++
 			}
 			callback(c) // accept !!!!

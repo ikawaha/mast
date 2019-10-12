@@ -1,2 +1,2 @@
-// Package string implements string to string transducers.
-package string
+// Package stringfst implements stringfst to stringfst transducers.
+package stringfst

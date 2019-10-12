@@ -1,2 +1,2 @@
-// Package int32 implements string to int32 transducers.
-package int32
+// Package int32fst implements stringfst to int32fst transducers.
+package int32fst
