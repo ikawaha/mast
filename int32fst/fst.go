@@ -130,7 +130,7 @@ func (t FST) CommonPrefixSearch(keyword string) (lens []int, outputs [][]int32) 
 
 // CommonPrefixSearchCallback finds keywords sharing common prefix and calls the callback function
 // every time it founds common prefix to notify its length and output.
-func (t FST) CommonPrefixSearchCallback(keyword string, callback func(lenght int, outputs []int32)) {
+func (t FST) CommonPrefixSearchCallback(keyword string, callback func(length int, outputs []int32)) {
 	t.Run(keyword, func(snapshot Configuration) {
 		callback(snapshot.Head, snapshot.Outputs)
 	})
