@@ -89,7 +89,12 @@ func (p Program) Reverse() {
 	}
 }
 
-// BuildFST generates virtual machine code of an FST from a minimal acyclic subsequential transducer
+// New constructs string to int32 FST.
+func New(input PairSlice) (*FST, error) {
+	return BuildMAST(input).BuildFST()
+}
+
+// BuildFST generates virtual machine code of an FST from a minimal acyclic subsequential transducer.
 func (m MAST) BuildFST() (*FST, error) {
 	var (
 		prog  Program
