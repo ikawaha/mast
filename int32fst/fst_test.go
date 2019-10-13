@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"sort"
 	"testing"
+
+	"github.com/ikawaha/dartsclone"
 )
 
 func (t *FST) runTester(input string) (cs []Configuration, accept bool) {
@@ -635,4 +637,76 @@ func TestCommonPrefixSearchCallback(t *testing.T) {
 			t.Errorf("unecpected call, length %v, outputs %v", length, outputs)
 		})
 	})
+}
+
+func BenchmarkSearch(b *testing.B) {
+	fp, err := os.Open("../testdata/ipadic.txt")
+	if err != nil {
+		b.Fatalf("unexpected error, %v", err)
+	}
+	defer fp.Close()
+	var input PairSlice
+	s := bufio.NewScanner(fp)
+	for i := 0; s.Scan(); i++ {
+		p := Pair{In: s.Text(), Out: int32(i)}
+		input = append(input, p)
+	}
+	if err := s.Err(); err != nil {
+		b.Fatalf("unexpected error, %v", err)
+	}
+	fst, err := New(input)
+	if err != nil {
+		b.Fatalf("unexpected error, %v", err)
+	}
+
+	xxx, err := os.Create("fstidpadicxxx")
+	if err != nil {
+		b.Fatalf("unexpected error, %v", err)
+	}
+	defer xxx.Close()
+	fst.WriteTo(xxx)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for _, v := range input {
+			fst.Search(v.In)
+		}
+	}
+}
+
+func BenchmarkSearchDA(b *testing.B) {
+	fp, err := os.Open("../testdata/words_uniq.txt")
+	if err != nil {
+		b.Fatalf("unexpected error, %v", err)
+	}
+	defer fp.Close()
+	var input []string
+	s := bufio.NewScanner(fp)
+	for i := 0; s.Scan(); i++ {
+		input = append(input, s.Text())
+	}
+	if err := s.Err(); err != nil {
+		b.Fatalf("unexpected error, %v", err)
+	}
+
+	trie, err := dartsclone.BuildTRIE(input, nil, nil)
+	if err != nil {
+		b.Fatalf("unexpected error, %v", err)
+	}
+
+	builder := dartsclone.NewBuilder(nil)
+	builder.Build(input, nil)
+	xxx, err := os.Create("daxxx")
+	if err != nil {
+		b.Fatalf("unexpected error, %v", err)
+	}
+	builder.WriteTo(xxx)
+	xxx.Close()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for _, v := range input {
+			trie.ExactMatchSearch(v)
+		}
+	}
 }
