@@ -1,4 +1,7 @@
-[![Build Status](https://travis-ci.org/ikawaha/mast.svg?branch=master)](https://travis-ci.org/ikawaha/mast) [![Coverage Status](https://coveralls.io/repos/ikawaha/mast/badge.png?branch=master)](https://coveralls.io/r/ikawaha/mast?branch=master) [![experimental](http://badges.github.io/stability-badges/dist/experimental.svg)](http://github.com/badges/stability-badges)
+![Build Status](https://github.com/ikawaha/mast/workflows/Go/badge.svg)
+[![codecov](https://codecov.io/gh/ikawaha/mast/branch/master/graph/badge.svg)](https://codecov.io/gh/ikawaha/mast)
+
+
 
 # Minimal Acyclic Subsequential Transducers
 

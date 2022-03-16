@@ -1,0 +1,12 @@
+github.com/euclidr/darts v0.0.0-20180401113647-e0859b23b68e h1:SJ6NVXT96EzZgSX2V5NBVYGsHyxHXrDhhtrWOKe4n/k=
+github.com/euclidr/darts v0.0.0-20180401113647-e0859b23b68e/go.mod h1:uZOcB9m9tCkJHZFC3diz9McvyuzFL3wWG+Wn1IiNXjI=
+github.com/ikawaha/da v0.0.0-20141126165404-5556b9e515ca h1:Ye8wDuFVpINaiKj26eAOwmqBAWDEEVdhgEtyUCfUMw8=
+github.com/ikawaha/da v0.0.0-20141126165404-5556b9e515ca/go.mod h1:JZfcL9+WaPkxDS7OBk09o8VkkV7YYI9yLQG610HxZds=
+github.com/ikawaha/dartsclone v1.0.0 h1:Z6R0BASHSNSxlcIY6UE1+aR6azYW6j3ge6dbmT+JWA0=
+github.com/ikawaha/dartsclone v1.0.0/go.mod h1:6+lg0WgpO3ZJaqHu/qOSNIjxbeD1qpTpimD8YYnBnJY=
+github.com/mitchellh/colorstring v0.0.0-20150917214807-8631ce90f286 h1:KHyL+3mQOF9sPfs26lsefckcFNDcIZtiACQiECzIUkw=
+github.com/mitchellh/colorstring v0.0.0-20150917214807-8631ce90f286/go.mod h1:l0dey0ia/Uv7NcFFVbCLtqEBQbrT4OCwCSKTEv6enCw=
+github.com/schollz/progressbar/v2 v2.7.1 h1:wEojKO9r+zgGEEgJSsu7QcVAM0NeEP64Ad4lHK12A5A=
+github.com/schollz/progressbar/v2 v2.7.1/go.mod h1:l6tn6yU6ZdQoF8lwX/VoAUQ3FjhCbrcZDnl9xeWZzYw=
+golang.org/x/sys v0.0.0-20181213200352-4d1cda033e06 h1:0oC8rFnE+74kEmuHZ46F6KHsMr5Gx2gUQPuNz28iQZM=
+golang.org/x/sys v0.0.0-20181213200352-4d1cda033e06/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
